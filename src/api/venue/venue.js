@@ -55,6 +55,65 @@ function uploadVenueImage(venueImage) {
     });
     return decorImagefilename;
 }
+
+router.post('/:id/reviews', async (req, res) => {
+    try {
+        const venueId = req.params.id;
+        const review = {
+            reviewtitle: req.body.reviewtitle,
+            reviewdescription: req.body.reviewdescription,
+            reviewrating: req.body.reviewrating,
+            created_at: new Date(),
+        };
+
+        const venue = await Venue.findById(venueId);
+        if (!venue) {
+            return res.status(404).json({ message: 'Venue not found' });
+        }
+
+        // Add new review to the beginning of the array
+        venue.reviews.unshift(review);
+        await venue.save();
+
+        res.status(200).json(review);
+    } catch (error) {
+        console.error('Error adding review:', error);
+        res.status(500).json({ message: 'Error adding review' });
+    }
+});
+
+// router.post('/api/venue/addReview/:id', async (req, res) => {
+//     try {
+//       const venueId = req.params.id;
+//       const venue = await Venue.findById(venueId);
+  
+//       if (!venue) {
+//         return res.status(404).json({ message: 'Venue not found' });
+//       }
+  
+//       const newReview = {
+//         reviewdescription: req.body.reviewdescription,
+//         reviewrating: req.body.reviewrating,
+//         reviewtitle: req.body.reviewtitle,
+//       };
+  
+//       // Add to reviews array
+//       if (!venue.reviews) {
+//         venue.reviews = [];
+//       }
+//       venue.reviews.push(newReview);
+  
+//       // Update the main review fields with the latest review
+//       venue.reviewdescription = newReview.reviewdescription;
+//       venue.reviewrating = newReview.reviewrating;
+//       venue.reviewtitle = newReview.reviewtitle;
+  
+//       await venue.save();
+//       res.json({ message: 'Review added successfully', review: newReview });
+//     } catch (error) {
+//       res.status(400).json({ message: error.message });
+//     }
+//   });
 router.post('/', auth, async (req, res) => {
     try {
         const userId = cipher.getUserFromToken(req);
@@ -218,6 +277,12 @@ router.post('/', auth, async (req, res) => {
                     subareaid: req.body.subareaid,
                     description: req.body.description,
                     shortdescription: req.body.shortdescription,
+                    reviews: req.body.reviewdescription ? [{
+                        reviewtitle: req.body.reviewtitle,
+                        reviewdescription: req.body.reviewdescription,
+                        reviewrating: req.body.reviewrating,
+                        created_at: new Date(),
+                    }] : [],
                     assured: req.body.assured,
                     venueImage: venueImagefilename,
                     decor1Image: decor1Imagefilename,
@@ -1603,7 +1668,13 @@ router.post("/uploadCSV", auth, async (req, res) => {
                                                     foodMenuType:foodMenuType,
                                                     metaUrl: row[46],
                                                     metaDescription: row[47],
-                                                    metaKeywords: row[48]
+                                                    metaKeywords: row[48],
+                                                    reviews: row[49] ? [{
+                                                        reviewtitle: row[51],
+                                                        reviewdescription: row[49],
+                                                        reviewrating: row[50],
+                                                        created_at: new Date()
+                                                    }] : [],
                                                 });
                                                 
                                                 // console.log(JSON.stringify(venueObj));

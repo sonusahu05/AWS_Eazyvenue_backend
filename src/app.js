@@ -11,6 +11,7 @@ const fs = require('fs');
 const https = require('https');
 const swaggerDocument = require('./swagger.json');
 const logger = require('./utils/logger');
+const venueReviewRoutes = require('./api/venue/venueReview');
 
 const { url } = config.get('db');
 mongoose.set('strictQuery', false);
@@ -134,6 +135,7 @@ app.use(express.static(profileDir));
 
 // Routes for common controllers
 app.use(`${root}/auth`, authController);
+app.use(`${root}/venues`, venueReviewRoutes);
 app.use(`${root}`, commonController);
 app.use(`${root}/settings`, auth, settingsController);
 

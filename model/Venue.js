@@ -47,6 +47,15 @@ const venueSchema = new mongoose.Schema({
     foodType: [],
 
     shortdescription: String,
+    reviews: [{
+        reviewdescription: String,
+        reviewrating: Int32,
+        reviewtitle: String,
+        created_at: {
+            type: Date,
+            default: Date.now,
+        }
+    }],
     description: String,
     mobileNumber: String,
     capacity: Int32,
