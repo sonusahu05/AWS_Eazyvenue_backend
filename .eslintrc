@@ -1,0 +1,19 @@
+{
+    "root": true,
+    "env": {
+        "es6": true,
+        "node": true
+    },
+    "extends": "airbnb-base",
+    "rules": {
+        "import/no-extraneous-dependencies": ["error", {"devDependencies": true}],
+        "linebreak-style": 0,
+        "no-plusplus": ["error", {"allowForLoopAfterthoughts": true } ],
+        "consistent-return": 0,
+        "max-len": ["error", { "code": 120 }],
+        "arrow-body-style": 0,
+        "arrow-parens": 0,
+        "no-underscore-dangle": 0,
+        "class-methods-use-this": 0
+    }
+}

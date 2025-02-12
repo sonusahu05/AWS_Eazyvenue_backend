@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You</title>
+    <style>
+        .mobile-width {
+            width: 60% !important;
+        }
+
+        .background {
+            background-image: url(https://eazyvenue.com/assets/images/emailbg.png);
+            background-size: contain;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .mobile-width {
+                width: 90% !important;
+            }
+
+            .background {
+                background-image: url(https://eazyvenue.com/assets/images/emailbg.png);
+                background-size: cover;
+            }
+        }
+    </style>
+</head>
+
+<body style="font-family: 'Arial', sans-serif; margin: 0; padding: 0;">
+
+    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+        <tr>
+            <td class="background" style="text-align: center; padding-top: 20px; padding-bottom: 5px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" class="mobile-width"
+                    style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 3px 5px rgba(0, 0, 0, 0.18); margin-left: auto; margin-right: auto;">
+                    <tbody>
+                        <tr>
+                            <td style="text-align: center; padding: 20px;">
+                                <img src="https://eazyvenue.com/assets/images/eazyvneu-logo.png" alt="eazyvenue.com"
+                                    style="width: 50%;">
+                                <h1 style="line-height: 1.5; margin: 20px 0;">Thank you for your inquiry.</h1>
+                                <p style="margin-top: 10px;">Someone from our team will be with you shortly.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding-left: 10px; padding-right: 10px;">
+                                <hr style="border-color: #f8f8f845;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; padding: 10px;">
+                                <h2 style="color: #E84F57; margin: 20px 0; font-weight: 400;">Your Inquiry</h2>
+                                <img src="https://api.eazyvenue.com/uploads/venuePic/<%= venueImage %>"
+                                    alt="venue_image" style="width: 100%;">
+                                <div style="padding: 10px;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" width="80%"
+                                        style="margin: 0 auto; text-align: left;">
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Venue:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= venue %></p>
+                                            </td>
+                                        </tr>
+                                        <br style="margin-bottom: 10px;" />
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Occasion:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= occasion %></p>
+                                            </td>
+                                        </tr>
+                                        <br style="margin-bottom: 10px;" />
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Guest Count:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= guestCount %></p>
+                                            </td>
+                                        </tr>
+                                        <br style="margin-bottom: 10px;" />
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Time Slot:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= dates %> &nbsp; <%= slot %></p>
+                                            </td>
+                                        </tr>
+                                        <br style="margin-bottom: 10px;" />
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Food Type:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= foodType %> &nbsp; <%= plateType %></p>
+                                            </td>
+                                        </tr>
+                                        <br style="margin-bottom: 10px;" />
+                                        <tr>
+                                            <td style="border: 1px solid #ebebeb; border-radius: 8px; margin: 10px 0; overflow: hidden; padding: 12px;">
+                                                <h4 style="color: #656565; display: inline-block; margin: 0;">Decoration Type:</h4>
+                                                <p style="color: #E84F57; margin: 0; font-weight: 400; display: inline-block;"><%= decorationType %></p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding-left: 10px; padding-right: 10px;">
+                                <hr style="border-color: #f8f8f845;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; padding: 20px;">
+                                <p style="color: #B2B2B2; margin: 0;">In the meantime, please feel free to explore our Services
+                                    and learn more about what we do.</p>
+                                <h2 style="color: #E84F57; margin: 20px 0; font-weight: 400;">Our Services</h2>
+                                <table role="presentation" cellspacing="10" cellpadding="0" width="100%"
+                                    style="margin-bottom: 20px;">
+                                    <tr>
+                                        <td style="text-align: center;">
+                                            <img src="https://api.eazyvenue.com/uploads/venuePic/Vaishali_banquet_hall_001.jpg"
+                                                alt="venue_image" style="width: 100%;">
+                                            <p style="color: #050505; font-weight: 400; margin: 10px 0;">Decor Starting from
+                                                10,000 Rs.</p>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <img src="https://api.eazyvenue.com/uploads/venuePic/Vaishali_banquet_hall_001.jpg"
+                                                alt="venue_image" style="width: 100%;">
+                                            <p style="color: #000000; font-weight: 400; margin: 10px 0;">Decor Starting from
+                                                10,000 Rs.</p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <a href="#"
+                                    style="background-color: #000; padding: 10px 20px; color: #FFF; text-decoration: none; font-size: 1rem; font-weight: 600; border-radius: 5px;">Explore Now</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="esd-structure" align="left">
+                                <table cellpadding="0" cellspacing="0" width="100%">
+                                    <tbody>
+                                        <tr>
+                                            <td class="esd-container-frame" width="590" valign="top" align="center"
+                                                esd-custom-block-id="827983">
+                                                <table width="100%" cellspacing="0" cellpadding="0">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="esd-block-text es-m-txt-c es-p10t" align="center">
+                                                                <p style="color: #ca3b3b; font-size: 16px;"><strong>&nbsp;www.eazyvenue.com<br>+91
+                                                                        9372091300</strong></p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="esd-container-frame" width="590" valign="top" align="center"
+                                                esd-custom-block-id="827985">
+                                                <table width="100%" cellspacing="0" cellpadding="0">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="esd-block-social" align="center"
+                                                                style="font-size: 0px;">
+                                                                <table class="es-table-not-adapt es-social" cellspacing="0"
+                                                                    cellpadding="0">
+                                                                    <tbody>
+                                                                        <tr>
+                                                                            <td class="es-p10r" valign="top" align="center"><a
+                                                                                    target="_blank"
+                                                                                    href="https://www.instagram.com/eazyvenue/"><img
+                                                                                        title="Instagram"
+                                                                                        src="https://yoghmg.stripocdn.email/content/assets/img/social-icons/logo-colored/instagram-logo-colored.png"
+                                                                                        alt="Inst" width="32"></a></td>
+                                                                            <td valign="top" align="center" esd-tmp-icon-type="facebook"
+                                                                                class="es-p10r"><a target="_blank"
+                                                                                    href="https://www.facebook.com/eazyvenue"><img
+                                                                                        title="Facebook"
+                                                                                        src="https://yoghmg.stripocdn.email/content/assets/img/social-icons/logo-colored/facebook-logo-colored.png"
+                                                                                        alt="Fb" width="32"></a></td>
+                                                                            <td valign="top" align="center"
+                                                                                esd-tmp-icon-type="twitter"><a target="_blank"
+                                                                                    href="https://twitter.com/EazyvenuePvtLtd"><img
+                                                                                        title="Twitter"
+                                                                                        src="https://yoghmg.stripocdn.email/content/assets/img/social-icons/logo-colored/twitter-logo-colored.png"
+                                                                                        alt="Tw" width="32"></a></td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="esd-block-text es-p5t es-p5b" align="center">
+                                                                <p style="color: #999999;">Want to take a break?<br><a
+                                                                        target="_blank"
+                                                                        href="https://eazyvenue.in/unsubscribe.html?id=user&email=Email">Unsubscribe
+                                                                        from our emails.</a></p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+
+    </table>
+
+</body>
+
+</html>

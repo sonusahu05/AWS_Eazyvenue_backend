@@ -1,0 +1,1154 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "ngx-admin Backend Bundle API",
+    "description": "ngx-admin Backend Bundle API",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "basePath": "/api",
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "authentication"
+    },    
+    {
+      "name": "Module",
+      "description": "Module api"
+    },
+    {
+      "name": "Role",
+      "description": "Role api"
+    },
+    {
+      "name": "Users",
+      "description": "User api"
+    }
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization",
+      "description": "Bearer <my own JWT token>"
+    }
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "User Authentication returning a JWT",
+        "description": "Authenticate a user",
+        "parameters": [
+          {
+            "name": "loginDto",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/loginDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "schema": {
+              "$ref": "#/definitions/Token"
+            }
+          }
+        }
+      }
+    },
+    "/auth/sign-up": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign up new user",
+        "description": "Sign up new user",
+        "parameters": [
+          {
+            "name": "signUpDto",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/signUpDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "schema": {
+              "$ref": "#/definitions/Token"
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh user token",
+        "description": "Refresh user token",
+        "parameters": [
+          {
+            "name": "refreshTokenDTO",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error message",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Users list",
+        "description": "Gets users list",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filterByfirstName",
+            "in": "query",
+            "description": "Should filter by first name field",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterBylastName",
+            "in": "query",
+            "description": "Should filter by last name field",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterBylogin",
+            "in": "query",
+            "description": "Should filter by user name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterByemail",
+            "in": "query",
+            "description": "Should filter by email",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterByage",
+            "in": "query",
+            "description": "Should filter by age",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterBystreet",
+            "in": "query",
+            "description": "Should filter by street",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterBycity",
+            "in": "query",
+            "description": "Should filter by city",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterByzipcode",
+            "in": "query",
+            "description": "Should filter by zip code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Should sort by field",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderBy",
+            "in": "query",
+            "description": "Order direction ASC / DESC",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return list of users (filtered users by query params) and total count of users in response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/User"
+                      }
+                    ]
+                  }
+                },
+                "totalCount": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Add new user",
+        "description": "Add new user",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "NewUserDto",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/user/{id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user by id",
+        "description": "Get user by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "User Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return user by id",
+            "schema": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/User"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update current user",
+        "description": "Update current user",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Module Id",            
+            "in": "path"
+          },
+          {
+            "name": "UserDto",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/UserDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return edited user",
+            "schema": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/User"
+                },
+                {
+                  "properties": {
+                    "settings": {
+                      "type": "object"                      
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "409": {
+            "description": "Email is exist",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "metadata": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "field": {
+                          "type": "email"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete user by id",
+        "description": "Delete user by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "User Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return user by id",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/module/": {
+      "get": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Module list",
+        "description": "Get Module list",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          
+        ],
+        "responses": {
+          "200": {
+            "description": "Return list of modules (filtered users by query params) and total count of modules in response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/Modules"
+                      },
+                      {
+                        "properties": {
+                          "module": {
+                            "type": "object",
+                            "$ref": "#/definitions/Modules"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "totalCount": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Add new module",
+        "description": "Add new  module",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "NewRoleModule",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Modules"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/module/level/{level}": {
+      "get": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Get levelwise Module List",
+        "description": "Get levelwise Module",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "level",
+            "description": "Level",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return Modules by level",
+            "schema": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/RoleModules"
+                },
+                {
+                  "properties": {
+                    "settings": {
+                      "type": "object",
+                      "$ref": "#/definitions/RoleModules"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "/module/{id}": {
+      "get": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Get Module by id",
+        "description": "Get Module by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Module Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return Module by id",
+            "schema": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Modules"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Update current Module",
+        "description": "Update current Module",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Module Id",            
+            "in": "path"
+          },
+          {
+            "name": "Modules",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Modules"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return current module"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Module"
+        ],
+        "summary": "Delete Module by id",
+        "description": "Delete Module by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Module Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/userrole/": {
+      "get": {
+        "tags": [
+          "Role"
+        ],
+        "summary": "Role list",
+        "description": "Get Role list",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filterByroleName",
+            "in": "query",
+            "description": "Should filter by role name field",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filterByStatus",
+            "in": "query",
+            "description": "Should filter by status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Should sort by field",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderBy",
+            "in": "query",
+            "description": "Order direction ASC / DESC",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return list of Roles (filtered users by query params) and total count of Roles in response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/Role"
+                      },
+                      {
+                        "properties": {
+                          "module": {
+                            "type": "object",
+                            "$ref": "#/definitions/Role"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "totalCount": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Role"
+        ],
+        "summary": "Add new Role",
+        "description": "Add new  Role",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "NewRole",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/userrole/{id}": {
+      "get": {
+        "tags": [
+          "Role"
+        ],
+        "summary": "Get Role by id",
+        "description": "Get Role by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Role Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return Role by id",
+            "schema": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Role"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Role"
+        ],
+        "summary": "Update current Role",
+        "description": "Update current Role",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Role Id",            
+            "in": "path"
+          },
+          {
+            "name": "Role",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Roles"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return current Role"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Role"
+        ],
+        "summary": "Delete Role by id",
+        "description": "Delete Role by id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Role Id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "loginDto": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "signUpDto": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "confirmPassword": {
+          "type": "string"
+        }
+      }
+    },
+    "changePasswordDto": {
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string"
+        },
+        "confirmPassword": {
+          "type": "string"
+        }
+      }
+    },
+    "Token": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "object",
+          "properties": {
+            "expires_in": {
+              "type": "integer"
+            },
+            "access_token": {
+              "type": "string"
+            },
+            "refresh_token": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer"
+        },
+        "login": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "zipCode": {
+              "type": "string"
+            }
+          }
+        },
+        "profilepic": {
+            "type": "string"
+        }
+      }
+    },
+    "Modules": {
+      "type": "object",
+      "properties": {
+        "module": {
+          "type": "string"
+        },
+        "module_description": {
+          "type": "string"
+        },
+        "level": {
+          "type": "number"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "permission": {
+          "type": "object",
+          "properties": {
+            "edit": {
+              "type": "boolean"
+            },
+            "view": {
+              "type": "boolean"
+            }
+          }
+        },
+        "submodule":{
+          "type": "array",
+          "items":{
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string"
+              },
+              "module_description": {
+                "type": "string"
+              },
+              "level": {
+                "type": "number"
+              },
+              "status": {
+                "type": "boolean"
+              },
+              "permission": {
+                "type": "object",
+                "properties": {
+                  "edit": {
+                    "type": "boolean"
+                  },
+                  "view": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Role": {
+      "type": "object",
+      "properties": {
+        "user_role_name": {
+          "type": "string"
+        },
+        "user_role_description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "permissions":{
+          "type": "array",
+          "items":{
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string"
+              },
+              "module_description": {
+                "type": "string"
+              },
+              "level": {
+                "type": "number"
+              },
+              "status": {
+                "type": "boolean"
+              },
+              "permission": {
+                "type": "object",
+                "properties": {
+                  "edit": {
+                    "type": "boolean"
+                  },
+                  "view": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "submodule":{
+                "type": "array",
+                "items":{
+                  "type": "object",
+                  "properties": {
+                    "module": {
+                      "type": "string"
+                    },
+                    "module_description": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "boolean"
+                    },
+                    "permission": {
+                      "type": "object",
+                      "properties": {
+                        "edit": {
+                          "type": "boolean"
+                        },
+                        "view": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "UserDto": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer"
+        },
+        "role": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "zipCode": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
