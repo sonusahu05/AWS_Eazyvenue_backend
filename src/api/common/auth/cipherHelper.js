@@ -84,12 +84,25 @@ function generateResponseTokens(user,type) {
         profilepic:user.profilepic, timeZone: user.timeZone, timeOffset: user.timeZoneOffset, mobile: user.mobile };
     }
     
-    else if(type='venueowner') {        
-        normalizedUser = { id: user._id, role: user.roledetail[0]['_id'], rolename: user.roledetail[0]['user_role_name'], email: user.email, 
-            firstname:user.firstName, lastname:user.lastName, fullName:user.fullName, status:user.status, 
-            profilepic:user.profilepic, timeZone: user.timeZone, timeOffset: user.timeZoneOffset, mobile: user.mobileNumber, venuename: user.venuedetail[0]['name'], 
-            venuename: user.venuedetail[0]['name'] };
+    else if(type='venueowner') {
+        normalizedUser = { 
+            id: user._id, 
+            role: user.roledetail[0]['_id'], 
+            rolename: user.roledetail[0]['user_role_name'], 
+            email: user.email, 
+            firstname: user.firstName, 
+            lastname: user.lastName, 
+            fullName: user.fullName, 
+            status: user.status, 
+            profilepic: user.profilepic, 
+            timeZone: user.timeZone, 
+            timeOffset: user.timeZoneOffset, 
+            mobile: user.mobileNumber, 
+            // Check if venuedetail exists and has elements
+            venuename: user.venuedetail && user.venuedetail.length > 0 ? user.venuedetail[0]['name'] : null
+        };
     }
+    
     const accessToken = jwt.sign(
         normalizedUser,
         config.get('auth.jwt.accessTokenSecret'),
