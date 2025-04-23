@@ -111,6 +111,7 @@ router.post("/", auth, async (req, res) => {
 
         //check whether user if filled the profile
         if(userDetails && userDetails.firstName && userDetails.lastName && userDetails.email){
+            console.log("📨 Sending availability email to:", userDetails.email);
             const crmData = {
                 "Lead Name" : userDetails.firstName + ' ' + userDetails.lastName,
                 "Number of Guest" : guestCount,
@@ -185,6 +186,8 @@ router.post("/", auth, async (req, res) => {
                         plateType: plateType,
                         decorationType: decor,
                         venueImage: venueData.venueImage[0].venue_image_src,
+                        userName: userDetails.firstName + ' ' + userDetails.lastName,
+                        userMobile: userDetails.mobileNumber
                     }
                     sendCheckAvailibilityMail(data);
                     res.json({ message: "Data Inserted Successfully", id: venueOrder.insertedId });

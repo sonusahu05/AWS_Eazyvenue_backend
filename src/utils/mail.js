@@ -20,7 +20,7 @@ const sendCheckAvailibilityMail = async(data) =>{
         var mailOptions = {
             from: 'book@eazyvenue.com',
             // to: ['maathesh@eazyvenue.com','krutik.d@eazyvenue.com','kalambe125@gmail.com'],
-            to: [data.to],
+            to: [data.to, 'adwaith.viju@eazyvenue.com','Deep.Seth@eazyvenue.com','Anchal@eazyvenue.com'],
             subject: "Check Availibility - Eazyvenue.com",
             html: htmlData,
             replyTo: 'book@eazyvenue.com'
@@ -86,7 +86,7 @@ const sendNewRegistrationMail = async(data) =>{
         });
         var mailOptions = {
             from: 'book@eazyvenue.com',
-            to: ['info@eazyvenue.com'],
+            to: ['info@eazyvenue.com','adwaith.viju@eazyvenue.com'],
             subject: "New User Registration Alert - Eazyvenue Team",
             text: `
 Dear Sales Team,
@@ -101,7 +101,7 @@ Phone Number: ${data.mobileNumber}
 Best Regards,
 Team Eazyvenue
             `,
-            cc: ['pooja.yadav@eazyvenue.com','Deep.Seth@eazyvenue.com','Anchal@eazyvenue.com'],
+            cc: ['Deep.Seth@eazyvenue.com','Anchal@eazyvenue.com','adwaith.viju@eazyvenue.com'],
             // cc: ['maathesh@eazyvenue.com','ashutosh.kalambe@eazyvenue.com','niraj.pal@eazyvenue.com'],
             replyTo: 'book@eazyvenue.com'
         }
@@ -150,7 +150,7 @@ const sendLoginMailToSales = async(data) =>{
         });
         var mailOptions = {
             from: 'book@eazyvenue.com',
-            to: ['info@eazyvenue.com'],
+            to: ['info@eazyvenue.com','adwaith.viju@eazyvenue.com'],
             subject: "User Login Alert - Eazyvenue Team",
             text: `
 Dear Sales Team,
@@ -165,7 +165,7 @@ Phone Number: ${data.mobileNumber}
 Best Regards,
 Team Eazyvenue
             `,
-            cc: ['pooja.yadav@eazyvenue.com','Deep.Seth@eazyvenue.com','Anchal@eazyvenue.com'],
+            cc: ['Deep.Seth@eazyvenue.com','Anchal@eazyvenue.com','adwaith.viju@eazyvenue.com'],
             // cc: ['maathesh@eazyvenue.com','ashutosh.kalambe@eazyvenue.com','niraj.pal@eazyvenue.com'],
             replyTo: 'book@eazyvenue.com'
         }
