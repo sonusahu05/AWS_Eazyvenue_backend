@@ -62,13 +62,37 @@ router.post("/", async (req, res) => {
         }
 
         const banner = new Banner({
+            // Basic fields
             banner_title: req.body.banner_title,
             banner_image: bannerImagefilename,
             slug: req.body.slug,
-            // banner_url: req.body.banner_url,
-            // banner_content: req.body.banner_content,
+            banner_content: req.body.banner_content,
             status: req.body.status,
             disable: req.body.disable,
+            
+            // Blog specific fields
+            post_type: req.body.post_type || 'regular',
+            category: req.body.category,
+            author: req.body.author,
+            reading_time: req.body.reading_time,
+            meta_description: req.body.meta_description,
+            seo_title: req.body.seo_title,
+            seo_keywords: req.body.seo_keywords,
+            tags: req.body.tags || [],
+            
+            // Featured post fields
+            featured_order: req.body.featured_order || 0,
+            
+            // Instagram fields
+            instagram_url: req.body.instagram_url,
+            instagram_caption: req.body.instagram_caption,
+            is_video: req.body.is_video || false,
+            
+            // Publishing fields
+            publish_date: req.body.publish_date || new Date(),
+            is_published: req.body.is_published || false,
+            
+            // System fields
             created_by: userId,
             updated_by: ObjectID(userId)
         });
@@ -90,14 +114,14 @@ router.post("/", async (req, res) => {
 
 // Get All Banner Listing
 router.get("/", async (req, res) => {
+    if (!req.query.filterByDisable) {
+        req.query.filterByDisable = 'false';
+      }
     try {
-        bannerService
-            .list(req.query)
-            .then(banner => {
-                res.json({ totalCount: banner.length, data: banner });
-            })
+        const banners = await bannerService.list(req.query);
+        res.json(banners);
     } catch (error) {
-        res.json({ message: error });
+        res.status(500).json({ message: error.message });
     }
 });
 

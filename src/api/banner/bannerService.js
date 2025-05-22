@@ -144,16 +144,30 @@ class BannerService {
       banner_title: banner.banner_title,
       slug: banner.slug,
       banner_image: this.getBannerImageUrl(banner.banner_image),
-      // banner_url:banner.banner_url,
-      // banner_content:banner.banner_content,
+      banner_content: banner.banner_content,  // ADD THIS
+      banner_url: banner.banner_url,          // ADD THIS
       status: banner.status,
       disable: banner.disable,
+      
+      // ADD THESE NEW FIELDS:
+      post_type: banner.post_type || 'regular',
+      category: banner.category || 'general',
+      author: banner.author || 'Admin',
+      reading_time: banner.reading_time,
+      meta_description: banner.meta_description,
+      tags: banner.tags || [],
+      featured_order: banner.featured_order || 0,
+      instagram_url: banner.instagram_url,
+      instagram_caption: banner.instagram_caption,
+      is_video: banner.is_video || false,
+      publish_date: banner.publish_date || banner.created_at,
+      is_published: banner.is_published !== undefined ? banner.is_published : banner.status,
+      seo_title: banner.seo_title,
+      seo_keywords: banner.seo_keywords,
       created_at: banner.created_at,
       updated_at: banner.updated_at,
       createdby: banner.created_by,
-      createdBy: createdBy,
       updatedby: banner.updated_by,
-      updatedBy: updatedBy,
       bannerVisible: false,
     } : {};
   }
