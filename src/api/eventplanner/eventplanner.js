@@ -1,80 +1,62 @@
 const router = require("express").Router();
-var mongodb = require('mongodb');
-var mongo = require('mongodb').MongoClient;
-const cipher = require('../common/auth/cipherHelper');
-var express = require('express');
-var mongoose = require('mongoose');
-const Eventplanner = require('../../../model/Eventplanner');
-const EventplannerService = require('./eventplannerService');
-const eventplannerService = new EventplannerService();
 const { ObjectId } = require('mongodb');
-var moment = require('moment');
-// Add All News Letter
+const Enquiry = require('../../../model/Eventplanner');
+const EnquiryService = require('./eventplannerService');
+const enquiryService = new EnquiryService();
+
+// Create auto enquiry
 router.post("/", async (req, res) => {
-    const userId = cipher.getUserFromToken(req);    
-    const eventplannerObj = new Eventplanner({
-        name: req.body.name,
-        mobileNumber: req.body.mobileNumber,
-        eventdate: req.body.eventdate,
-        email: req.body.email,
-        guestcnt: req.body.guestcnt,
-        status: true,
-        disable: false,
-    })
-    try {        
-        await eventplannerService.add(eventplannerObj)
-                .then(eventplanner => {
-                    res.json({ message: "Data Inserted Successfully", id: eventplanner.insertedId });
-                })
-                .catch(err => res.status(400).send({ error: err.message }));
-    } catch (error) {
-        res.status(404).send(error);
-    }
-});
+    try {
+        // Check if enquiry already exists for this user+venue combination
+        const existingEnquiry = await Enquiry.findOne({
+            venueId: req.body.venueId,
+            userContact: req.body.userContact
+        });
 
-// Update 
-router.put("/:id", async (req, res) => {
-    const userId = cipher.getUserFromToken(req);
-    const eventplannerObj = [];
-    const eventplannerId = req.params.id;
-    eventplannerObj['updated_by'] = ObjectId(userId);
-    eventplannerObj['updated_at'] = moment.utc().toDate();
-    for (var key in req.body) {
-        if (key == "disable") {
-            eventplannerObj['disable'] = req.body.disable;
-            eventplannerObj['deleted_by'] = ObjectId(userId);
-            eventplannerObj['deleted_at'] = moment.utc().toDate();
-        } else if (key == "status") {
-            eventplannerObj['status'] = req.body[key];
-        } else {
-            eventplannerObj[key] = req.body[key];
+        if (existingEnquiry) {
+            return res.json({ message: "Enquiry already exists" });
         }
+
+        const enquiryObj = new Enquiry({
+            venueName: req.body.venueName,
+            venueId: req.body.venueId,
+            userName: req.body.userName,
+            userContact: req.body.userContact,
+            userEmail: req.body.userEmail
+        });
+
+        const savedEnquiry = await enquiryObj.save();
+        res.json({ message: "Enquiry created successfully", id: savedEnquiry._id });
+        
+    } catch (error) {
+        res.status(400).send({ error: error.message });
     }
-    const updateData = Object.assign({}, eventplannerObj);
-    const updateContactUs = await eventplannerService.update(eventplannerId, updateData).then(eventplannerData => {
-        res.json({ message: "Data Updated Successfully", data: eventplannerData });
-    });
 });
 
-// Get All 
+// Get all enquiries grouped by venue
 router.get("/", async (req, res) => {
     try {
-        eventplannerService
-            .list(req.query)
-            .then(eventplanner => {
-                res.json({ totalCount: eventplanner.length, data: eventplanner });
-            })
+        const enquiries = await enquiryService.getGroupedEnquiries();
+        res.json({ 
+            totalCount: enquiries.length, 
+            data: { items: enquiries }
+        });
     } catch (error) {
-        res.json({ message: error });
+        res.json({ message: error.message });
     }
 });
-// Get Single News Letter Listing
-router.get("/:id", async (req, res) => {
+
+// Update enquiry status
+router.put("/:id", async (req, res) => {
     try {
-        const eventplanner = await eventplannerService.findById(req.params.id);
-        res.json(eventplanner);
+        const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+            req.params.id, 
+            req.body, 
+            { new: true }
+        );
+        res.json({ message: "Enquiry updated successfully", data: updatedEnquiry });
     } catch (error) {
-        res.json({ message: error });
+        res.status(400).send({ error: error.message });
     }
 });
 

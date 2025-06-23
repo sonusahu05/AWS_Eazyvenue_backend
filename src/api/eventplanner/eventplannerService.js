@@ -1,58 +1,44 @@
-const jwt = require('jsonwebtoken');
-const config = require('config');
-const fs = require("fs");
-const EventplanerRepository = require('./eventplannerRepository');
-const cipher = require('../common/auth/cipherHelper');
-const { api, frontEnd, picture } = require('config');
-var moment = require('moment');
+const Enquiry = require('../../../model/Eventplanner');
 
-class EventplanerService {
-    constructor() {
-        this.repository = new EventplanerRepository();
-    }
-    add(eventplannerData) {       
-        return this.repository.add(eventplannerData);
-    }
-
-    findById(id) {
-        return this.repository.findById(id)
-            .then(eventplanner => this.mapEventplannerToDto(eventplanner[0]));
-    }
-
-    update(id, eventplannerData) { 
-        return this.repository.edit(id, eventplannerData).then((eventplanner) => {
-            return this.findById(id);
-        });
-    }
-
-    list(filter) {
-        return Promise.all([
-            this.repository.listFiltered(filter),
-            this.repository.getCountFiltered(filter),
-            ])
-            .then(([data, totalRecords]) => {
-                return {
-                    totalCount: totalRecords.length,
-                    items: data.map(item => this.mapEventplannerToDto(item))                    
-                };
-            });
-    }
-
-   
+class EnquiryService {
     
-    mapEventplannerToDto(eventplanner) {       
-        return eventplanner ? {
-            id: eventplanner._id,
-            name: eventplanner.name,
-            mobileNumber: eventplanner.mobileNumber,
-            eventdate: eventplanner.eventdate,
-            email: eventplanner.email,
-            guestcnt: eventplanner.guestcnt,
-            status: eventplanner.status,
-            disable: eventplanner.disable,
-            created_at: eventplanner.created_at,
-            updated_at: eventplanner.updated_at,
-        } : {};
+    async getGroupedEnquiries() {
+        try {
+            const enquiries = await Enquiry.aggregate([
+                {
+                    $group: {
+                        _id: "$venueId",
+                        venueName: { $first: "$venueName" },
+                        leadCount: { $sum: 1 },
+                        latestEnquiry: { $first: "$$ROOT" },
+                        enquiries: { $push: "$$ROOT" }
+                    }
+                },
+                {
+                    $match: {
+                        leadCount: { $gt: 0 } // Only show venues with leads
+                    }
+                },
+                {
+                    $sort: { leadCount: -1 }
+                }
+            ]);
+
+            return enquiries.map(venue => ({
+                id: venue._id,
+                venueName: venue.venueName,
+                userName: venue.latestEnquiry.userName,
+                userContact: venue.latestEnquiry.userContact,
+                leadCount: venue.leadCount,
+                created_at: venue.latestEnquiry.created_at,
+                status: venue.latestEnquiry.status,
+                allEnquiries: venue.enquiries
+            }));
+            
+        } catch (error) {
+            throw error;
+        }
     }
 }
-module.exports = EventplanerService;
+
+module.exports = EnquiryService;
