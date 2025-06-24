@@ -6,6 +6,8 @@ const enquiryService = new EnquiryService();
 
 // Create auto enquiry
 router.post("/", async (req, res) => {
+    console.log('🔥 BACKEND: Received enquiry creation request:', req.body);
+    
     try {
         // Check if enquiry already exists for this user+venue combination
         const existingEnquiry = await Enquiry.findOne({
@@ -14,7 +16,8 @@ router.post("/", async (req, res) => {
         });
 
         if (existingEnquiry) {
-            return res.json({ message: "Enquiry already exists" });
+            console.log('🔥 BACKEND: Enquiry already exists for this user+venue:', existingEnquiry);
+            return res.json({ message: "Enquiry already exists", existing: true });
         }
 
         const enquiryObj = new Enquiry({
@@ -25,23 +28,32 @@ router.post("/", async (req, res) => {
             userEmail: req.body.userEmail
         });
 
+        console.log('🔥 BACKEND: Creating new enquiry:', enquiryObj);
         const savedEnquiry = await enquiryObj.save();
+        console.log('🔥 BACKEND: Enquiry saved successfully:', savedEnquiry);
+        
         res.json({ message: "Enquiry created successfully", id: savedEnquiry._id });
         
     } catch (error) {
+        console.error('🔥 BACKEND: Error creating enquiry:', error);
         res.status(400).send({ error: error.message });
     }
 });
 
 // Get all enquiries grouped by venue
 router.get("/", async (req, res) => {
+    console.log('🔥 BACKEND: Fetching all enquiries...');
+    
     try {
         const enquiries = await enquiryService.getGroupedEnquiries();
+        console.log('🔥 BACKEND: Grouped enquiries fetched:', enquiries);
+        
         res.json({ 
             totalCount: enquiries.length, 
             data: { items: enquiries }
         });
     } catch (error) {
+        console.error('🔥 BACKEND: Error fetching enquiries:', error);
         res.json({ message: error.message });
     }
 });
