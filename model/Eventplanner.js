@@ -34,9 +34,14 @@ const enquirySchema = new Schema({
     status: { 
         type: String, 
         default: 'New', 
-        enum: ['New', 'Contacted', 'Converted', 'Closed'] 
+        enum: ['New', 'WhatsApp Contacted', 'Phone Contacted', 'Closed'] // Updated enum values
     }
 });
+
+// Add indexes for better performance
+enquirySchema.index({ venueId: 1, userContact: 1 });
+enquirySchema.index({ status: 1 });
+enquirySchema.index({ created_at: -1 });
 
 // Use 'Enquiry' as model name - Mongoose will pluralize to 'enquiries'
 module.exports = mongoose.model('Enquiry', enquirySchema);
