@@ -4,11 +4,11 @@ const Schema = mongoose.Schema;
 
 const enquirySchema = new Schema({
     venueName: { 
-        type: String, 
+        type: String,
         required: true 
     },
     venueId: { 
-        type: String,  // Changed from ObjectId to String to match frontend
+        type: String, 
         required: true 
     },
     userName: { 
@@ -16,7 +16,7 @@ const enquirySchema = new Schema({
         required: true 
     },
     userContact: { 
-        type: Number,  // Changed from String to Number to match frontend
+        type: Number,
         required: true 
     },
     userEmail: { 
@@ -34,9 +34,14 @@ const enquirySchema = new Schema({
     status: { 
         type: String, 
         default: 'New', 
-        enum: ['New', 'Contacted', 'Converted', 'Closed'] 
+        enum: ['New', 'WhatsApp Contacted', 'Phone Contacted', 'Closed']
     }
 });
+
+// Add indexes for better performance
+enquirySchema.index({ venueId: 1, userContact: 1 });
+enquirySchema.index({ status: 1 });
+enquirySchema.index({ created_at: -1 });
 
 // Use 'Enquiry' as model name - Mongoose will pluralize to 'enquiries'
 module.exports = mongoose.model('Enquiry', enquirySchema);
