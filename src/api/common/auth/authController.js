@@ -1,12 +1,12 @@
 const express = require('express');
 const passport = require('passport');
-const cipher = require('../auth/cipherHelper');
+const cipher = require('./cipherHelper');
 const AuthService = require('./authService');
 const router = express.Router();
 const authService = new AuthService();
 const auth = passport.authenticate('jwt', { session: false });
-const RoleService = require('./../role/roleService');
-const UserService = require('./../user/userService');
+const RoleService = require('../role/roleService');
+const UserService = require('../user/userService');
 const RoleRepository = require('../role/roleRepository');
 const roleRepository = new RoleRepository();
 const UserRepository =  require('../user/userRepository');

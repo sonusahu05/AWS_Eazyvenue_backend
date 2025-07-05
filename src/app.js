@@ -72,6 +72,7 @@ const wishlistRoutes = require('./api/wishlist/wishlist');
 const offerRoutes = require('./api/offer/offer');
 const vendorRoutes = require('./api/vendor/vendor');
 const vendorOrderRoutes = require('./api/vendororder/vendororder');
+const analyticsRoutes = require('./api/analytics/geography/analytics');
 
 // Initialize the application
 const app = express();
@@ -97,6 +98,20 @@ function clientErrorHandler(err, req, res, next) {
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// CORS configuration
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    'http://localhost:3000',
+    'https://eazyvenue.com',
+    'https://www.eazyvenue.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 const auth = passport.authenticate('jwt', { session: false });
 
 // Swagger setup
@@ -130,8 +145,18 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
-const profileDir = path.join(__dirname, '/public');
+
+// Static file serving configuration
+const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
+
+// Serve uploads directory
+const uploadsDir = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsDir));
+
+// Alternative uploads path for backward compatibility
+const publicUploadsDir = path.join(__dirname, 'public/uploads');
+app.use('/uploads', express.static(publicUploadsDir));
 
 // Routes for common controllers
 app.use(`${root}/auth`, authController);
@@ -164,8 +189,8 @@ app.use(`${root}/eventplanner`, eventplannerRoutes);
 app.use(`${root}/wishlist`, wishlistRoutes);
 app.use(`${root}/offer`, offerRoutes);
 app.use(`${root}/vendor`, vendorRoutes);
+app.use(`${root}/analytics/geography`, analyticsRoutes);
 
-app.use('/upload', express.static('upload'));
 app.use(logErrors);
 app.use(clientErrorHandler);
 

@@ -17,6 +17,7 @@ const roleService = new RoleService();
 const categoryService = new CategoryService();
 const { ObjectId } = require("mongodb");
 var moment = require("moment");
+const { createAnalyticsIndexes } = require("./analytics/geography/createIndexes");
 class SeedService {
   checkAndSeed() {
     logger.infoLog.info("Seed Data");
@@ -66,11 +67,11 @@ class SeedService {
       logger.infoLog.info("Seed Data");
       await this.addModules();
       await this.addRole();
-      let countriesData = require("./../defaultdata/countries.json");
+      let countriesData = require("../defaultdata/countries.json");
       const country = await commonService.addMany(countriesData, "countries");
-      let statesData = require("./../defaultdata/states.json");
+      let statesData = require("../defaultdata/states.json");
       const states = await commonService.addMany(statesData, "states");
-      let citiesData = require("./../defaultdata/cities.json");
+      let citiesData = require("../defaultdata/cities.json");
       const city = await commonService.addMany(citiesData, "cities");
       const role = await roleService.findByRoleName("admin");
       await this.addCustomUsers(role[0]._id);
@@ -104,6 +105,8 @@ class SeedService {
       await this.addSubarea(userId);
       await this.addSubcategory(userId);
       await this.addSlot(userId);
+      // Create analytics indexes
+      await this.createAnalyticsIndexes();
       logger.infoLog.info("Seed Users Done");
     } catch (err) {
       logger.errorLog.error(err);
@@ -2180,6 +2183,16 @@ class SeedService {
 
       return categoryService.addMany(subcategoryToAdd);
     });
+  }
+
+  async createAnalyticsIndexes() {
+    try {
+      logger.infoLog.info("Creating analytics indexes...");
+      await createAnalyticsIndexes();
+      logger.infoLog.info("Analytics indexes created successfully");
+    } catch (error) {
+      logger.errorLog.error("Error creating analytics indexes:", error);
+    }
   }
 }
 

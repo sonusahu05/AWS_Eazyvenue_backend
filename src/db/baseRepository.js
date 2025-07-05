@@ -1,5 +1,5 @@
 const { ObjectId } = require('mongodb');
-const getMongoDBClient = require('../db/mongodbClient');
+const getMongoDBClient = require('./mongodbClient');
 
 class BaseRepository {
     constructor(collectionName) {

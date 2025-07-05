@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-let User = require('../model/User');
+let User = require('./User');
 
 const slotSchema = new Schema({
     slot: String,

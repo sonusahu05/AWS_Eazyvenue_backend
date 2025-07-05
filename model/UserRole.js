@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-let User = require('../model/User');
+let User = require('./User');
 const userroleSchema = new mongoose.Schema({
     user_role_name: String,
     user_role_description: String,

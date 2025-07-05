@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-let User = require('../model/User');
+let User = require('./User');
 
 const bannerSchema = new mongoose.Schema({
     // Basic fields
