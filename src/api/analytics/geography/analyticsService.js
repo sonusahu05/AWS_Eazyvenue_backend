@@ -246,7 +246,15 @@ class AnalyticsService {
         try {
             console.log('=== AnalyticsService.getVenueInsights ===');
             console.log('venueId:', venueId);
+            console.log('Date range:', { from, to });
             
+            // If date range is provided, generate insights for that specific period
+            if (from && to) {
+                console.log('Generating insights for specific date range');
+                return await this.generateVenueInsightsForDateRange(venueId, from, to);
+            }
+            
+            // Otherwise, get stored insights or generate new ones
             let insights = await this.venueInsightRepository.getInsightByVenue(venueId);
             console.log('Existing insights found:', !!insights);
             
@@ -267,6 +275,137 @@ class AnalyticsService {
         } catch (error) {
             console.error('Error in getVenueInsights:', error);
             throw new Error(`Failed to get insights for venue ${venueId}: ${error.message}`);
+        }
+    }
+
+    async generateVenueInsightsForDateRange(venueId, from, to) {
+        try {
+            console.log('=== generateVenueInsightsForDateRange ===');
+            console.log('venueId:', venueId);
+            console.log('Date range:', { from, to });
+            
+            const dateRange = {
+                start: new Date(from),
+                end: new Date(to)
+            };
+            
+            // Get clicks for the venue in the date range
+            const clicks = await this.venueClickRepository.getClicksByVenue(venueId, dateRange);
+            console.log('Clicks found for date range:', clicks.length);
+            
+            if (!clicks || clicks.length === 0) {
+                console.log('No clicks found for venue in date range');
+                return {
+                    totalClicks: 0,
+                    averageQualityScore: 0,
+                    averageTimeSpent: 0,
+                    averageScrollDepth: 0,
+                    enquirySubmissions: 0,
+                    heatmapPoints: [],
+                    cityStats: [],
+                    subareaStats: [],
+                    deviceStats: { mobile: 0, desktop: 0, tablet: 0 },
+                    timeline: [],
+                    topPincodes: [],
+                    dateFiltered: true,
+                    dateRange: { from, to }
+                };
+            }
+
+            // Calculate aggregate stats from clicks
+            const totalClicks = clicks.length;
+            const averageQualityScore = clicks.reduce((sum, click) => sum + (click.qualityScore || 0), 0) / totalClicks;
+            const averageTimeSpent = clicks.reduce((sum, click) => sum + (click.engagement?.timeSpentSeconds || 0), 0) / totalClicks;
+            const averageScrollDepth = clicks.reduce((sum, click) => sum + (click.engagement?.scrollDepthPercent || 0), 0) / totalClicks;
+            const enquirySubmissions = clicks.filter(click => click.engagement?.submittedEnquiry === true).length;
+
+            // Process city stats
+            const cityStats = Object.values(clicks.reduce((acc, click) => {
+                const city = click.location?.city || 'Unknown';
+                if (!acc[city]) {
+                    acc[city] = { city, clicks: 0 };
+                }
+                acc[city].clicks++;
+                return acc;
+            }, {})).sort((a, b) => b.clicks - a.clicks);
+
+            // Process device stats
+            const deviceStats = {
+                mobile: clicks.filter(click => click.device?.isMobile === true).length,
+                desktop: clicks.filter(click => click.device?.isMobile === false).length,
+                tablet: clicks.filter(click => click.device?.platform?.toLowerCase().includes('tablet')).length
+            };
+
+            // Process subarea stats
+            const subareaStats = Object.values(clicks.reduce((acc, click) => {
+                const subarea = click.location?.subarea;
+                if (subarea) {
+                    if (!acc[subarea]) {
+                        acc[subarea] = { subarea, clicks: 0 };
+                    }
+                    acc[subarea].clicks++;
+                }
+                return acc;
+            }, {})).sort((a, b) => b.clicks - a.clicks);
+
+            // Process pincode stats
+            const topPincodes = Object.values(clicks.reduce((acc, click) => {
+                const pincode = click.location?.pincode;
+                if (pincode) {
+                    if (!acc[pincode]) {
+                        acc[pincode] = { pincode, count: 0 };
+                    }
+                    acc[pincode].count++;
+                }
+                return acc;
+            }, {})).sort((a, b) => b.count - a.count).slice(0, 10);
+
+            // Process timeline data - group clicks by date
+            const timelineData = {};
+            clicks.forEach(click => {
+                const dateKey = click.timestamp.toISOString().split('T')[0]; // YYYY-MM-DD format
+                if (!timelineData[dateKey]) {
+                    timelineData[dateKey] = 0;
+                }
+                timelineData[dateKey]++;
+            });
+
+            // Convert to array format and sort by date
+            const timeline = Object.entries(timelineData)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Process heatmap points - extract location data
+            const heatmapPoints = clicks
+                .filter(click => click.location?.lat && click.location?.lng)
+                .map(click => ({
+                    lat: click.location.lat,
+                    lng: click.location.lng,
+                    intensity: click.qualityScore || 0.5
+                }));
+
+            const insightData = {
+                heatmapPoints,
+                cityStats,
+                subareaStats,
+                deviceStats,
+                timeline,
+                topPincodes,
+                totalClicks,
+                averageQualityScore: Math.round(averageQualityScore * 100) / 100,
+                averageTimeSpent: Math.round(averageTimeSpent * 100) / 100,
+                averageScrollDepth: Math.round(averageScrollDepth * 100) / 100,
+                enquirySubmissions,
+                dateFiltered: true,
+                dateRange: { from, to }
+            };
+
+            console.log('Generated date-filtered insightData:', insightData);
+            
+            // Don't save date-filtered insights to database, return them directly
+            return insightData;
+        } catch (error) {
+            throw new Error(`Failed to generate date-filtered insights for venue ${venueId}: ${error.message}`);
         }
     }
 

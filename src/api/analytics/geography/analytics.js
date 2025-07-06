@@ -8,6 +8,34 @@ const passport = require('passport');
 const analyticsService = new AnalyticsService();
 const auth = passport.authenticate('jwt', { session: false });
 
+/**
+ * Helper function to get user's full name for venue filtering
+ */
+function getUserFullName(user) {
+    if (!user) return null;
+    
+    // Check for direct name field first
+    const directName = user.name || user.userdata?.name;
+    if (directName && directName.trim()) {
+        return directName.trim();
+    }
+    
+    // Construct from firstname + lastname
+    const firstname = user.firstname || user.userdata?.firstname || '';
+    const lastname = user.lastname || user.userdata?.lastname || '';
+    const fullName = `${firstname} ${lastname}`.trim();
+    
+    console.log('👤 USER NAME CONSTRUCTION:', {
+        directName,
+        firstname,
+        lastname,
+        fullName,
+        finalResult: fullName || directName || null
+    });
+    
+    return fullName || null;
+}
+
 // Track venue interest - Public endpoint (no auth required)
 router.post('/track-venue-click', async (req, res) => {
     try {
@@ -187,23 +215,30 @@ router.get('/geographic-distribution/:venueId', auth,  async (req, res) => {
 // Get aggregated stats for all venues - Admin endpoint or venue-specific for venue owners
 router.get('/stats/overview', auth, async (req, res) => {
     try {
-        const { from, to } = req.query;
+        const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
-        let venueFilter = null;
+        console.log('📊 OVERVIEW STATS - User info:', {
+            userRole,
+            userFullName,
+            frontendVenueFilter: venueFilter
+        });
         
-        // If user is not admin, filter by their venue name
-        if (userRole !== 'admin' && userName) {
-            venueFilter = userName; // Assuming venue name matches user name for venue owners
+        let finalVenueFilter = venueFilter; // Use frontend-provided filter first
+        
+        // If no frontend filter provided and user is not admin, filter by their venue name
+        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+            finalVenueFilter = userFullName;
+            console.log('📊 OVERVIEW STATS - Applied auto venue filter:', finalVenueFilter);
         }
         
-        const stats = await analyticsService.getOverallStats(from, to, venueFilter);
+        const stats = await analyticsService.getOverallStats(from, to, finalVenueFilter);
         
         res.status(200).json({
             success: true,
             data: stats,
-            isFiltered: venueFilter !== null
+            isFiltered: finalVenueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching overview stats: ${error.message}`);
@@ -218,28 +253,35 @@ router.get('/stats/overview', auth, async (req, res) => {
 // Get popular venues - Admin endpoint or venue-specific for venue owners
 router.get('/stats/popular-venues', auth, async (req, res) => {
     try {
-        const { from, to, limit = 10 } = req.query;
+        const { from, to, limit = 10, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
-        let venueFilter = null;
+        console.log('📊 POPULAR VENUES - User info:', {
+            userRole,
+            userFullName,
+            frontendVenueFilter: venueFilter
+        });
         
-        // If user is not admin, filter by their venue name
-        if (userRole !== 'admin' && userName) {
-            venueFilter = userName; // Assuming venue name matches user name for venue owners
+        let finalVenueFilter = venueFilter; // Use frontend-provided filter first
+        
+        // If no frontend filter provided and user is not admin, filter by their venue name
+        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+            finalVenueFilter = userFullName;
+            console.log('📊 POPULAR VENUES - Applied auto venue filter:', finalVenueFilter);
         }
         
         const popularVenues = await analyticsService.getPopularVenues({
             from,
             to,
             limit: parseInt(limit),
-            venueFilter
+            venueFilter: finalVenueFilter
         });
         
         res.status(200).json({
             success: true,
             data: popularVenues,
-            isFiltered: venueFilter !== null
+            isFiltered: finalVenueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching popular venues: ${error.message}`);
@@ -254,23 +296,30 @@ router.get('/stats/popular-venues', auth, async (req, res) => {
 // Get device analytics - Admin endpoint or venue-specific for venue owners
 router.get('/stats/device-analytics', auth, async (req, res) => {
     try {
-        const { from, to } = req.query;
+        const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
-        let venueFilter = null;
+        console.log('📊 DEVICE ANALYTICS - User info:', {
+            userRole,
+            userFullName,
+            frontendVenueFilter: venueFilter
+        });
         
-        // If user is not admin, filter by their venue name
-        if (userRole !== 'admin' && userName) {
-            venueFilter = userName;
+        let finalVenueFilter = venueFilter; // Use frontend-provided filter first
+        
+        // If no frontend filter provided and user is not admin, filter by their venue name
+        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+            finalVenueFilter = userFullName;
+            console.log('📊 DEVICE ANALYTICS - Applied auto venue filter:', finalVenueFilter);
         }
         
-        const deviceStats = await analyticsService.getDeviceAnalytics(from, to, venueFilter);
+        const deviceStats = await analyticsService.getDeviceAnalytics(from, to, finalVenueFilter);
         
         res.status(200).json({
             success: true,
             data: deviceStats,
-            isFiltered: venueFilter !== null
+            isFiltered: finalVenueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching device analytics: ${error.message}`);
@@ -285,23 +334,30 @@ router.get('/stats/device-analytics', auth, async (req, res) => {
 // Get timeline analytics - New endpoint for click timeline chart
 router.get('/stats/timeline', auth, async (req, res) => {
     try {
-        const { from, to } = req.query;
+        const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
-        let venueFilter = null;
+        console.log('📊 TIMELINE ANALYTICS - User info:', {
+            userRole,
+            userFullName,
+            frontendVenueFilter: venueFilter
+        });
         
-        // If user is not admin, filter by their venue name
-        if (userRole !== 'admin' && userName) {
-            venueFilter = userName;
+        let finalVenueFilter = venueFilter; // Use frontend-provided filter first
+        
+        // If no frontend filter provided and user is not admin, filter by their venue name
+        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+            finalVenueFilter = userFullName;
+            console.log('📊 TIMELINE ANALYTICS - Applied auto venue filter:', finalVenueFilter);
         }
         
-        const timelineData = await analyticsService.getTimelineAnalytics(from, to, venueFilter);
+        const timelineData = await analyticsService.getTimelineAnalytics(from, to, finalVenueFilter);
         
         res.status(200).json({
             success: true,
             data: timelineData,
-            isFiltered: venueFilter !== null
+            isFiltered: finalVenueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching timeline analytics: ${error.message}`);
@@ -316,23 +372,30 @@ router.get('/stats/timeline', auth, async (req, res) => {
 // Get top subareas - New endpoint for subareas analytics
 router.get('/stats/top-subareas', auth, async (req, res) => {
     try {
-        const { from, to, limit = 10 } = req.query;
+        const { from, to, limit = 10, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
-        let venueFilter = null;
+        console.log('📊 TOP SUBAREAS - User info:', {
+            userRole,
+            userFullName,
+            frontendVenueFilter: venueFilter
+        });
         
-        // If user is not admin, filter by their venue name
-        if (userRole !== 'admin' && userName) {
-            venueFilter = userName;
+        let finalVenueFilter = venueFilter; // Use frontend-provided filter first
+        
+        // If no frontend filter provided and user is not admin, filter by their venue name
+        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+            finalVenueFilter = userFullName;
+            console.log('📊 TOP SUBAREAS - Applied auto venue filter:', finalVenueFilter);
         }
         
-        const topSubareas = await analyticsService.getTopSubareas(from, to, venueFilter, parseInt(limit));
+        const topSubareas = await analyticsService.getTopSubareas(from, to, finalVenueFilter, parseInt(limit));
         
         res.status(200).json({
             success: true,
             data: topSubareas,
-            isFiltered: venueFilter !== null
+            isFiltered: finalVenueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching top subareas: ${error.message}`);
@@ -351,14 +414,14 @@ router.get('/stats/user-clicks/:venueId', auth, async (req, res) => {
         const { venueId } = req.params;
         const { from, to } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
         
         console.log('Request parameters:');
         console.log('- venueId:', venueId);
         console.log('- from:', from);
         console.log('- to:', to);
         console.log('- userRole:', userRole);
-        console.log('- userName:', userName);
+        console.log('- userFullName:', userFullName);
         
         // Check if user has access to this venue data
         // For now, allow all authenticated users to view user click details
@@ -404,7 +467,13 @@ router.get('/stats/venue-timeline/:venueId', auth, async (req, res) => {
         const { venueId } = req.params;
         const { from, to } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
-        const userName = req.user?.name || req.user?.userdata?.name;
+        const userFullName = getUserFullName(req.user);
+        
+        console.log('📊 VENUE TIMELINE - User info:', {
+            userRole,
+            userFullName,
+            venueId
+        });
         
         // Check if user has access to this venue data
         // For now, allow all authenticated users to view venue timeline data

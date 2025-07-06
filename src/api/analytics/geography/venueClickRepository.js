@@ -388,7 +388,7 @@ class VenueClickRepository extends BaseRepository {
 
             // Add venue filter if provided (for venue owners)
             if (venueFilter) {
-                matchQuery.venueId = venueFilter;
+                matchQuery.venueName = venueFilter; // Filter by venue name, not venueId
             }
 
             return await this.dbClient
@@ -451,7 +451,7 @@ class VenueClickRepository extends BaseRepository {
 
             // Add venue filter if provided (for venue owners)
             if (venueFilter) {
-                matchQuery.venueId = venueFilter;
+                matchQuery.venueName = venueFilter; // Filter by venue name, not venueId
             }
 
             return await this.dbClient
@@ -538,7 +538,7 @@ class VenueClickRepository extends BaseRepository {
 
             // Add venue filter if provided
             if (venueFilter) {
-                matchQuery.venueId = venueFilter;
+                matchQuery.venueName = venueFilter; // Filter by venue name, not venueId
             }
 
             return await this.dbClient
@@ -595,7 +595,7 @@ class VenueClickRepository extends BaseRepository {
 
             // Add venue filter if provided
             if (venueFilter) {
-                matchQuery.venueId = venueFilter;
+                matchQuery.venueName = venueFilter; // Filter by venue name, not venueId
             }
 
             return await this.dbClient
@@ -650,7 +650,7 @@ class VenueClickRepository extends BaseRepository {
 
             // Add venue filter if provided
             if (venueFilter) {
-                matchQuery.venueId = venueFilter;
+                matchQuery.venueName = venueFilter; // Filter by venue name, not venueId
             }
 
             return await this.dbClient
