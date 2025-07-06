@@ -11,6 +11,9 @@ const userroleSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now },
     updated_by: { type: Schema.Types.ObjectId, ref: "User" },
     updated_at: { type: Date },
+    // NEW: Simple array of module names for permission access
+    permission_access: [String],
+    // OLD: Complex permission structure (kept for backward compatibility)
     permissions: [
         {
             module: String,

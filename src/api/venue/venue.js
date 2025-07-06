@@ -807,9 +807,13 @@ router.get("/v1/", async (req, res) => {
             .then(venue => {
                 res.json({ totalCount: venue.length, data: venue });
             })
+            .catch(error => {
+                console.log('Error in /v1/ endpoint:', error);
+                res.status(500).json({ message: 'Internal server error', error: error.message });
+            });
     } catch (error) {
-        console.log(error);
-        res.json({ message: error });
+        console.log('Catch block error in /v1/ endpoint:', error);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
 router.get("/allVenues", async (req,res) =>{

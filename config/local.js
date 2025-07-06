@@ -4,9 +4,10 @@ module.exports = {
     root: "/api",
   },
   frontEnd: {
-    domain: "http://localhost:3000", // local
-    picPath: "http://localhost:3006", // local
-  },
+        // Use production server for images since that's where they're stored
+        domain: 'http://localhost:4200',
+        picPath: 'https://api.eazyvenue.com'
+    },
   auth: {
     jwt: {
       accessTokenSecret:
@@ -25,8 +26,43 @@ module.exports = {
     },
   },
   db: {
-    url: "mongodb://localhost:27017/eazyvenue_test",
-    name: "eazyvenue_test",
+    url: "mongodb://admin:Pass_9702@160.153.173.104:27017/admin",
+    name: "admin",
+  },
+  payment: {
+    liveKey: 'rzp_live_oyCHow0OxfS8oL',
+    liveSecret: 'epGc231JkMUV7jlaJ3NpKO9e',
+  },
+  picture: {
+    profilePicFolder: "src/public/uploads/profilepic/",
+    showPicFolderPath: "uploads/profilepic/",
+    defaultPicFolderPath: "images/",
+    bannerImageFolder: "src/public/uploads/bannerimage/",
+    showBannerPicFolderPath: "uploads/bannerimage/",
+    defaultPicFolderPath: "images/",
+    cmsPicFolder: "src/public/uploads/cmsPic/",
+    showCmsPicFolderPath: "uploads/cmsPic/",
+    venuePicFolder: "src/public/uploads/venuePic/",
+    showVenuePicFolderPath: "uploads/venuePic/",
+    showVendorPicFolderPath:'uploads/vendorpic/',
+    decorPicFolder: "src/public/uploads/decorPic/",
+    showDecorPicFolderPath: "uploads/decorPic/",
+    venueVideoFolder: "src/public/uploads/venueVideo/",
+    showVenueVideoFolderPath: "uploads/venueVideo/",
+    categoryPicFolder: "src/public/uploads/categoryPic/",
+    showCategoryPicFolderPath: "uploads/categoryPic/",
+    portfolioPicFolder: "src/public/uploads/portfolioPic/",
+    showPortfolioPicFolderPath: "uploads/portfolioPic/",
+    venueCSVFolder: "src/public/uploads/venueCsv/",
+    showPortfolioPicFolderPath: "uploads/venueCsv/",
+  },
+  sms: {
+    smsapi: "https://api2.nexgplatforms.com/sms/1/text/query",
+    username: "EzyvnuGuiT",
+    password: "Anchal@123",
+    from: "EZYVNU",
+    indiaDltContentTemplateId: "1207168932394709023",
+    indiaDltPrincipalEntityId: "1201166521573805146",
   },
   frontUrl: "http://localhost:3000",
   testMode: true,

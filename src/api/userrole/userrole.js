@@ -17,6 +17,7 @@ router.post('/', auth, async(req, res) => {
             disable:req.body.disable,
             default_data:req.body.default_data,
             permissions: req.body.permissions,
+            permission_access: req.body.permission_access, // NEW: Handle permission_access array
             created_by: userId,
             updated_by: ObjectID(userId)
         })
@@ -71,6 +72,9 @@ router.put("/:userroleId", auth, async (req, res)=> {
                 userObj['deleted_at'] = moment.utc().toDate();
             } else if(key == "status") {
                 userObj['status'] = req.body[key];       
+            } else if(key == "permission_access") {
+                // Explicitly handle permission_access array
+                userObj['permission_access'] = req.body[key];
             } else if(req.body[key] != "") {
                 userObj[key] = req.body[key];       
             }

@@ -66,6 +66,7 @@ class UserroleService {
             icon:userrole.icon,
             url:userrole.url,
             permissions: userrole.permissions,
+            permission_access: userrole.permission_access, // NEW: Include permission_access array
             default_data:userrole.default_data,
             disable:userrole.disable,
             created_by: userrole.created_by,
