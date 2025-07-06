@@ -23,12 +23,14 @@ class SeedService {
     logger.infoLog.info("Seed Data");
     userService.getCount().then(async (count) => {
       if (!count) {
+        // Database is empty - run initial seed
         this.seed().then();
       } else {
-        //await this.addEventPlannerModules();
-        // const adminUser = await userService.findByEmail('admin@admin.admin');
-        // const userId = adminUser._id;
-        // const role = await roleService.findByRoleName('admin');
+        // Database exists - check for updates
+        await this.checkAndUpdateModules();
+        const adminUser = await userService.findByEmail('admin@admin.admin');
+        const userId = adminUser._id;
+        const role = await roleService.findByRoleName('admin');
         // const eventPlanner  = {
         //   "module": "Enquiry Management",
         //   "module_description": "Manage Event Planner",
@@ -532,8 +534,38 @@ class SeedService {
     };
     moduleToAdd.push(eventPlanner);
 
+    const analytics = {
+      module: "Analytics Dashboard",
+      module_description: "Venue Analytics & Insights",
+      level: 1,
+      status: true,
+      url: "/manage/analytics",
+      icon: "pi pi-chart-bar",
+      permission: {
+        edit: true,
+        view: false,
+      },
+      submodule: [
+        {
+          module: "Geography Analytics",
+          module_description: "Location-based Analytics",
+          url: "/manage/analytics/geography",
+          icon: "pi-chart-line",
+          level: 2,
+          status: true,
+          permission: {
+            edit: true,
+            view: false,
+          },
+        },
+      ],
+    };
+    moduleToAdd.push(analytics);
+
     return moduleService.addMany(moduleToAdd);
   }
+
+
   addRole() {
     const roleToAdd = [];
     const adminrole = {
@@ -881,6 +913,32 @@ class SeedService {
             edit: true,
             view: false,
           },
+        },
+        {
+          module: "Analytics Dashboard",
+          module_description: "Venue Analytics & Insights",
+          level: 1,
+          status: true,
+          url: "/manage/analytics",
+          icon: "pi pi-chart-bar",
+          permission: {
+            edit: true,
+            view: false,
+          },
+          submodule: [
+            {
+              module: "Geography Analytics",
+              module_description: "Location-based Analytics",
+              url: "/manage/analytics/geography",
+              icon: "pi-chart-line",
+              level: 2,
+              status: true,
+              permission: {
+                edit: true,
+                view: false,
+              },
+            },
+          ],
         },
       ],
     };
@@ -2193,6 +2251,62 @@ class SeedService {
     } catch (error) {
       logger.errorLog.error("Error creating analytics indexes:", error);
     }
+  }
+
+  // Method to check for missing modules and add them
+  async checkAndUpdateModules() {
+    try {
+      // Check if Analytics module exists
+      const analyticsModule = await moduleService.findByModule("Analytics Dashboard");
+      if (!analyticsModule || analyticsModule.length === 0) {
+        console.log("Adding missing Analytics module...");
+        await this.addAnalyticsModule();
+      }
+      
+      // Check if Event Planner module exists
+      const eventPlannerModule = await moduleService.findByModule("Enquiry Management");
+      if (!eventPlannerModule || eventPlannerModule.length === 0) {
+        console.log("Adding missing Event Planner module...");
+        await this.addEventPlannerModules();
+      }
+      
+      // Add other module checks as needed
+    } catch (error) {
+      logger.errorLog.error("Error updating modules:", error);
+    }
+  }
+
+  // Method to add just the Analytics module
+  async addAnalyticsModule() {
+    const moduleToAdd = [];
+    const analytics = {
+      module: "Analytics Dashboard",
+      module_description: "Venue Analytics & Insights",
+      level: 1,
+      status: true,
+      url: "/manage/analytics",
+      icon: "pi pi-chart-bar",
+      permission: {
+        edit: true,
+        view: false,
+      },
+      submodule: [
+        {
+          module: "Geography Analytics",
+          module_description: "Location-based Analytics",
+          url: "/manage/analytics/geography",
+          icon: "pi-chart-line",
+          level: 2,
+          status: true,
+          permission: {
+            edit: true,
+            view: false,
+          },
+        },
+      ],
+    };
+    moduleToAdd.push(analytics);
+    return moduleService.addMany(moduleToAdd);
   }
 }
 

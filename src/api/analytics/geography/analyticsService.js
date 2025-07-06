@@ -1,10 +1,29 @@
 const VenueClickRepository = require('./venueClickRepository');
 const VenueInsightRepository = require('./venueInsightRepository');
+const BaseRepository = require('../../../db/baseRepository');
 
 class AnalyticsService {
     constructor() {
         this.venueClickRepository = new VenueClickRepository();
         this.venueInsightRepository = new VenueInsightRepository();
+        this.baseRepository = new BaseRepository();
+    }
+
+    async getVenueNameFromDatabase(venueId) {
+        try {
+            const { ObjectId } = require('mongodb');
+            const venueObjectId = typeof venueId === 'string' ? new ObjectId(venueId) : venueId;
+            
+            const venue = await this.baseRepository.dbClient
+                .then(db => db
+                    .collection('venues')
+                    .findOne({ _id: venueObjectId }, { projection: { name: 1 } }));
+            
+            return venue;
+        } catch (error) {
+            console.warn(`Error fetching venue name for ${venueId}:`, error.message);
+            return null;
+        }
     }
 
     calculateQualityScore(engagementData) {
@@ -46,6 +65,18 @@ class AnalyticsService {
                 throw new Error('venueId and sessionId are required');
             }
 
+            // If venue name is not provided, fetch it from the venues collection
+            let finalVenueName = venueName;
+            if (!finalVenueName || finalVenueName.trim() === '') {
+                try {
+                    const venue = await this.getVenueNameFromDatabase(venueId);
+                    finalVenueName = venue ? venue.name : 'Unknown Venue';
+                } catch (error) {
+                    console.warn(`Could not fetch venue name for ${venueId}:`, error.message);
+                    finalVenueName = 'Unknown Venue';
+                }
+            }
+
             // Calculate quality score
             const qualityScore = this.calculateQualityScore(engagement);
             
@@ -55,7 +86,7 @@ class AnalyticsService {
 
             const clickData = {
                 venueId,
-                venueName: venueName || '',
+                venueName: finalVenueName,
                 timestamp: new Date(),
                 user: {
                     userId: user.userId || null,
@@ -69,6 +100,7 @@ class AnalyticsService {
                     lat: location.lat || null,
                     lng: location.lng || null,
                     city: location.city || null,
+                    subarea: location.subarea || null,
                     state: location.state || null,
                     country: location.country || 'India',
                     pincode: location.pincode || null
@@ -97,14 +129,20 @@ class AnalyticsService {
 
     async generateVenueInsights(venueId) {
         try {
+            console.log('=== generateVenueInsights ===');
+            console.log('venueId:', venueId);
+            
             // Get aggregate stats first
             const aggregateStats = await this.venueClickRepository.getVenueAggregateStats(venueId);
+            console.log('Aggregate stats:', aggregateStats);
             
             if (!aggregateStats || aggregateStats.length === 0) {
+                console.log('No aggregate stats found for venue');
                 return null;
             }
 
             const stats = aggregateStats[0];
+            console.log('Stats object:', stats);
 
             // Get detailed analytics data in parallel
             const [
@@ -112,13 +150,15 @@ class AnalyticsService {
                 cityStats,
                 deviceStats,
                 timeline,
-                pincodeStats
+                pincodeStats,
+                subareaStats
             ] = await Promise.all([
                 this.venueClickRepository.getHeatmapData(venueId),
                 this.venueClickRepository.getCityStats(venueId),
                 this.venueClickRepository.getDeviceStats(venueId),
                 this.venueClickRepository.getTimelineData(venueId),
-                this.venueClickRepository.getPincodeStats(venueId)
+                this.venueClickRepository.getPincodeStats(venueId),
+                this.venueClickRepository.getSubareaStats(venueId)
             ]);
 
             // Format device stats
@@ -131,6 +171,7 @@ class AnalyticsService {
             const insightData = {
                 heatmapPoints: heatmapPoints || [],
                 cityStats: cityStats || [],
+                subareaStats: subareaStats || [],
                 deviceStats: formattedDeviceStats,
                 timeline: timeline || [],
                 topPincodes: pincodeStats || [],
@@ -141,7 +182,14 @@ class AnalyticsService {
                 enquirySubmissions: stats.enquirySubmissions || 0
             };
 
-            return await this.venueInsightRepository.upsertInsight(venueId, insightData);
+            console.log('Generated insightData:', insightData);
+            
+            // Save insights to database
+            await this.venueInsightRepository.upsertInsight(venueId, insightData);
+            console.log('Insights saved to database');
+            
+            // Return the actual insights data
+            return insightData;
         } catch (error) {
             throw new Error(`Failed to generate insights for venue ${venueId}: ${error.message}`);
         }
@@ -196,16 +244,28 @@ class AnalyticsService {
 
     async getVenueInsights(venueId, from, to) {
         try {
-            const insights = await this.venueInsightRepository.getInsightByVenue(venueId);
+            console.log('=== AnalyticsService.getVenueInsights ===');
+            console.log('venueId:', venueId);
+            
+            let insights = await this.venueInsightRepository.getInsightByVenue(venueId);
+            console.log('Existing insights found:', !!insights);
             
             if (!insights) {
+                console.log('No insights found, generating new ones...');
                 // Try to generate insights if none exist
-                await this.generateVenueInsights(venueId);
-                return await this.venueInsightRepository.getInsightByVenue(venueId);
+                insights = await this.generateVenueInsights(venueId);
+                console.log('Generated insights:', !!insights);
+                
+                if (!insights) {
+                    console.log('Could not generate insights - no click data available');
+                    return null;
+                }
             }
 
+            console.log('Returning insights with keys:', Object.keys(insights));
             return insights;
         } catch (error) {
+            console.error('Error in getVenueInsights:', error);
             throw new Error(`Failed to get insights for venue ${venueId}: ${error.message}`);
         }
     }
@@ -239,13 +299,13 @@ class AnalyticsService {
         }
     }
 
-    async getOverallStats(from, to) {
+    async getOverallStats(from, to, venueFilter = null) {
         try {
             const dateRange = {};
             if (from) dateRange.start = from;
             if (to) dateRange.end = to;
 
-            return await this.venueClickRepository.getOverallStats(dateRange);
+            return await this.venueClickRepository.getOverallStats(dateRange, venueFilter);
         } catch (error) {
             throw new Error(`Failed to get overall stats: ${error.message}`);
         }
@@ -253,27 +313,80 @@ class AnalyticsService {
 
     async getPopularVenues(options = {}) {
         try {
-            const { from, to, limit = 10 } = options;
+            const { from, to, limit = 10, venueFilter = null } = options;
             
             const dateRange = {};
             if (from) dateRange.start = from;
             if (to) dateRange.end = to;
 
-            return await this.venueClickRepository.getPopularVenues(dateRange, limit);
+            return await this.venueClickRepository.getPopularVenues(dateRange, limit, venueFilter);
         } catch (error) {
             throw new Error(`Failed to get popular venues: ${error.message}`);
         }
     }
 
-    async getDeviceAnalytics(from, to) {
+    async getDeviceAnalytics(from, to, venueFilter = null) {
         try {
             const dateRange = {};
             if (from) dateRange.start = from;
             if (to) dateRange.end = to;
 
-            return await this.venueClickRepository.getDeviceAnalytics(dateRange);
+            return await this.venueClickRepository.getDeviceAnalytics(dateRange, venueFilter);
         } catch (error) {
             throw new Error(`Failed to get device analytics: ${error.message}`);
+        }
+    }
+
+    async getTimelineAnalytics(from, to, venueFilter = null) {
+        try {
+            const dateRange = {};
+            if (from) dateRange.start = new Date(from);
+            if (to) dateRange.end = new Date(to);
+
+            return await this.venueClickRepository.getTimelineAnalytics(dateRange, venueFilter);
+        } catch (error) {
+            throw new Error(`Failed to get timeline analytics: ${error.message}`);
+        }
+    }
+
+    async getTopSubareas(from, to, venueFilter = null, limit = 10) {
+        try {
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return await this.venueClickRepository.getTopSubareas(dateRange, venueFilter, limit);
+        } catch (error) {
+            throw new Error(`Failed to get top subareas: ${error.message}`);
+        }
+    }
+
+    async getUserClickDetails(venueId, from, to, includeUserInfo = false) {
+        try {
+            console.log('=== AnalyticsService.getUserClickDetails ===');
+            console.log('Input parameters:');
+            console.log('- venueId:', venueId);
+            console.log('- from:', from);
+            console.log('- to:', to);
+            console.log('- includeUserInfo:', includeUserInfo);
+            
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+            
+            console.log('Constructed dateRange:', dateRange);
+
+            const result = await this.venueClickRepository.getUserClickDetails(venueId, dateRange, includeUserInfo);
+            console.log('Repository result:', {
+                resultType: Array.isArray(result) ? 'array' : typeof result,
+                resultLength: Array.isArray(result) ? result.length : 'N/A',
+                sampleData: Array.isArray(result) && result.length > 0 ? result[0] : null
+            });
+            
+            return result;
+        } catch (error) {
+            console.error('Error in AnalyticsService.getUserClickDetails:', error);
+            throw new Error(`Failed to get user click details: ${error.message}`);
         }
     }
 
@@ -333,6 +446,18 @@ class AnalyticsService {
             return clicks.slice(0, limit);
         } catch (error) {
             throw new Error(`Failed to get click history for venue ${venueId}: ${error.message}`);
+        }
+    }
+
+    async getVenueTimelineAnalytics(venueId, from, to) {
+        try {
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return await this.venueClickRepository.getVenueTimelineAnalytics(venueId, dateRange);
+        } catch (error) {
+            throw new Error(`Failed to get venue timeline analytics: ${error.message}`);
         }
     }
 }

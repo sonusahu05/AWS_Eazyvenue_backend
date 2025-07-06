@@ -43,6 +43,10 @@ const venueClickSchema = new Schema({
             type: String,
             index: true
         },
+        subarea: {
+            type: String,
+            index: true
+        },
         state: String,
         country: String,
         pincode: {
@@ -85,6 +89,7 @@ const venueClickSchema = new Schema({
 // Compound indexes for performance
 venueClickSchema.index({ venueId: 1, timestamp: -1 });
 venueClickSchema.index({ 'location.city': 1 });
+venueClickSchema.index({ 'location.subarea': 1 });
 venueClickSchema.index({ 'device.platform': 1 });
 venueClickSchema.index({ 'user.userId': 1 });
 

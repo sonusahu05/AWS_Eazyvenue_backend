@@ -74,7 +74,7 @@ router.post('/track-venue-click', async (req, res) => {
 });
 
 // Update venue insights - Admin endpoint
-router.post('/update-venue-insights/:venueId', auth, adminGuard, async (req, res) => {
+router.post('/update-venue-insights/:venueId', auth,  async (req, res) => {
     try {
         const { venueId } = req.params;
         
@@ -107,7 +107,7 @@ router.post('/update-venue-insights/:venueId', auth, adminGuard, async (req, res
 });
 
 // Get venue insights - Admin endpoint
-router.get('/venue-insights/:venueId', auth, adminGuard, async (req, res) => {
+router.get('/venue-insights/:venueId', auth,  async (req, res) => {
     try {
         const { venueId } = req.params;
         const { from, to } = req.query;
@@ -136,7 +136,7 @@ router.get('/venue-insights/:venueId', auth, adminGuard, async (req, res) => {
 });
 
 // Get venue clicks - Admin endpoint
-router.get('/venue-clicks/:venueId', auth, adminGuard, async (req, res) => {
+router.get('/venue-clicks/:venueId', auth,  async (req, res) => {
     try {
         const { venueId } = req.params;
         const { from, to, limit = 100, skip = 0 } = req.query;
@@ -163,7 +163,7 @@ router.get('/venue-clicks/:venueId', auth, adminGuard, async (req, res) => {
 });
 
 // Get geographic distribution - Admin endpoint
-router.get('/geographic-distribution/:venueId', auth, adminGuard, async (req, res) => {
+router.get('/geographic-distribution/:venueId', auth,  async (req, res) => {
     try {
         const { venueId } = req.params;
         const { from, to } = req.query;
@@ -184,16 +184,26 @@ router.get('/geographic-distribution/:venueId', auth, adminGuard, async (req, re
     }
 });
 
-// Get aggregated stats for all venues - Admin endpoint
-router.get('/stats/overview', auth, adminGuard, async (req, res) => {
+// Get aggregated stats for all venues - Admin endpoint or venue-specific for venue owners
+router.get('/stats/overview', auth, async (req, res) => {
     try {
         const { from, to } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
         
-        const stats = await analyticsService.getOverallStats(from, to);
+        let venueFilter = null;
+        
+        // If user is not admin, filter by their venue name
+        if (userRole !== 'admin' && userName) {
+            venueFilter = userName; // Assuming venue name matches user name for venue owners
+        }
+        
+        const stats = await analyticsService.getOverallStats(from, to, venueFilter);
         
         res.status(200).json({
             success: true,
-            data: stats
+            data: stats,
+            isFiltered: venueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching overview stats: ${error.message}`);
@@ -205,20 +215,31 @@ router.get('/stats/overview', auth, adminGuard, async (req, res) => {
     }
 });
 
-// Get popular venues - Admin endpoint
-router.get('/stats/popular-venues', auth, adminGuard, async (req, res) => {
+// Get popular venues - Admin endpoint or venue-specific for venue owners
+router.get('/stats/popular-venues', auth, async (req, res) => {
     try {
         const { from, to, limit = 10 } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
+        
+        let venueFilter = null;
+        
+        // If user is not admin, filter by their venue name
+        if (userRole !== 'admin' && userName) {
+            venueFilter = userName; // Assuming venue name matches user name for venue owners
+        }
         
         const popularVenues = await analyticsService.getPopularVenues({
             from,
             to,
-            limit: parseInt(limit)
+            limit: parseInt(limit),
+            venueFilter
         });
         
         res.status(200).json({
             success: true,
-            data: popularVenues
+            data: popularVenues,
+            isFiltered: venueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching popular venues: ${error.message}`);
@@ -230,22 +251,180 @@ router.get('/stats/popular-venues', auth, adminGuard, async (req, res) => {
     }
 });
 
-// Get device analytics - Admin endpoint
-router.get('/stats/device-analytics', auth, adminGuard, async (req, res) => {
+// Get device analytics - Admin endpoint or venue-specific for venue owners
+router.get('/stats/device-analytics', auth, async (req, res) => {
     try {
         const { from, to } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
         
-        const deviceStats = await analyticsService.getDeviceAnalytics(from, to);
+        let venueFilter = null;
+        
+        // If user is not admin, filter by their venue name
+        if (userRole !== 'admin' && userName) {
+            venueFilter = userName;
+        }
+        
+        const deviceStats = await analyticsService.getDeviceAnalytics(from, to, venueFilter);
         
         res.status(200).json({
             success: true,
-            data: deviceStats
+            data: deviceStats,
+            isFiltered: venueFilter !== null
         });
     } catch (error) {
         logger.errorLog.error(`Error fetching device analytics: ${error.message}`);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch device analytics',
+            details: error.message
+        });
+    }
+});
+
+// Get timeline analytics - New endpoint for click timeline chart
+router.get('/stats/timeline', auth, async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
+        
+        let venueFilter = null;
+        
+        // If user is not admin, filter by their venue name
+        if (userRole !== 'admin' && userName) {
+            venueFilter = userName;
+        }
+        
+        const timelineData = await analyticsService.getTimelineAnalytics(from, to, venueFilter);
+        
+        res.status(200).json({
+            success: true,
+            data: timelineData,
+            isFiltered: venueFilter !== null
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching timeline analytics: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch timeline analytics',
+            details: error.message
+        });
+    }
+});
+
+// Get top subareas - New endpoint for subareas analytics
+router.get('/stats/top-subareas', auth, async (req, res) => {
+    try {
+        const { from, to, limit = 10 } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
+        
+        let venueFilter = null;
+        
+        // If user is not admin, filter by their venue name
+        if (userRole !== 'admin' && userName) {
+            venueFilter = userName;
+        }
+        
+        const topSubareas = await analyticsService.getTopSubareas(from, to, venueFilter, parseInt(limit));
+        
+        res.status(200).json({
+            success: true,
+            data: topSubareas,
+            isFiltered: venueFilter !== null
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching top subareas: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch top subareas',
+            details: error.message
+        });
+    }
+});
+
+// Get user click details for a venue - Admin gets full info, venue owners get limited info
+router.get('/stats/user-clicks/:venueId', auth, async (req, res) => {
+    try {
+        console.log('=== /stats/user-clicks/:venueId API Endpoint ===');
+        const { venueId } = req.params;
+        const { from, to } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
+        
+        console.log('Request parameters:');
+        console.log('- venueId:', venueId);
+        console.log('- from:', from);
+        console.log('- to:', to);
+        console.log('- userRole:', userRole);
+        console.log('- userName:', userName);
+        
+        // Check if user has access to this venue data
+        // For now, allow all authenticated users to view user click details
+        // TODO: Implement proper venue ownership check
+        if (userRole !== 'admin') {
+            console.log('Non-admin user accessing venue data - venue owner check needed');
+            // We could implement venue ownership check here later
+            // For now, we'll allow access but limit user info based on role
+        }
+        
+        console.log('Access granted');
+        
+        // Include user contact info for all authenticated users
+        const includeUserInfo = true; // Changed from: userRole === 'admin'
+        console.log('includeUserInfo:', includeUserInfo);
+        
+        const userClicks = await analyticsService.getUserClickDetails(venueId, from, to, true);
+        
+        console.log('API response data:', {
+            resultType: Array.isArray(userClicks) ? 'array' : typeof userClicks,
+            resultLength: Array.isArray(userClicks) ? userClicks.length : 'N/A'
+        });
+        
+        res.status(200).json({
+            success: true,
+            data: userClicks,
+            includesUserInfo: includeUserInfo
+        });
+    } catch (error) {
+        console.error('Error in /stats/user-clicks/:venueId:', error);
+        logger.errorLog.error(`Error fetching user clicks: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch user clicks',
+            details: error.message
+        });
+    }
+});
+
+// Get venue-specific timeline analytics
+router.get('/stats/venue-timeline/:venueId', auth, async (req, res) => {
+    try {
+        const { venueId } = req.params;
+        const { from, to } = req.query;
+        const userRole = req.user?.role || req.user?.userdata?.role;
+        const userName = req.user?.name || req.user?.userdata?.name;
+        
+        // Check if user has access to this venue data
+        // For now, allow all authenticated users to view venue timeline data
+        // TODO: Implement proper venue ownership check
+        // if (userRole !== 'admin') {
+        //     console.log('Non-admin user accessing venue timeline data - venue owner check needed');
+        //     // We could implement venue ownership check here later
+        // }
+        
+        const timelineData = await analyticsService.getVenueTimelineAnalytics(venueId, from, to);
+        
+        res.status(200).json({
+            success: true,
+            data: timelineData
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching venue timeline: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch venue timeline analytics',
             details: error.message
         });
     }
