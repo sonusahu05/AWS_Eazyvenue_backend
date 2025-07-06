@@ -217,10 +217,16 @@ router.get('/stats/overview', auth, async (req, res) => {
     try {
         const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 OVERVIEW STATS - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
             frontendVenueFilter: venueFilter
         });
@@ -228,7 +234,7 @@ router.get('/stats/overview', auth, async (req, res) => {
         let finalVenueFilter = venueFilter; // Use frontend-provided filter first
         
         // If no frontend filter provided and user is not admin, filter by their venue name
-        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+        if (!finalVenueFilter && !isAdmin && userFullName) {
             finalVenueFilter = userFullName;
             console.log('📊 OVERVIEW STATS - Applied auto venue filter:', finalVenueFilter);
         }
@@ -255,18 +261,25 @@ router.get('/stats/popular-venues', auth, async (req, res) => {
     try {
         const { from, to, limit = 10, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 POPULAR VENUES - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
-            frontendVenueFilter: venueFilter
+            frontendVenueFilter: venueFilter,
+            fullUserObject: req.user
         });
         
         let finalVenueFilter = venueFilter; // Use frontend-provided filter first
         
         // If no frontend filter provided and user is not admin, filter by their venue name
-        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+        if (!finalVenueFilter && !isAdmin && userFullName) {
             finalVenueFilter = userFullName;
             console.log('📊 POPULAR VENUES - Applied auto venue filter:', finalVenueFilter);
         }
@@ -298,10 +311,16 @@ router.get('/stats/device-analytics', auth, async (req, res) => {
     try {
         const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 DEVICE ANALYTICS - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
             frontendVenueFilter: venueFilter
         });
@@ -309,7 +328,7 @@ router.get('/stats/device-analytics', auth, async (req, res) => {
         let finalVenueFilter = venueFilter; // Use frontend-provided filter first
         
         // If no frontend filter provided and user is not admin, filter by their venue name
-        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+        if (!finalVenueFilter && !isAdmin && userFullName) {
             finalVenueFilter = userFullName;
             console.log('📊 DEVICE ANALYTICS - Applied auto venue filter:', finalVenueFilter);
         }
@@ -336,10 +355,16 @@ router.get('/stats/timeline', auth, async (req, res) => {
     try {
         const { from, to, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 TIMELINE ANALYTICS - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
             frontendVenueFilter: venueFilter
         });
@@ -347,7 +372,7 @@ router.get('/stats/timeline', auth, async (req, res) => {
         let finalVenueFilter = venueFilter; // Use frontend-provided filter first
         
         // If no frontend filter provided and user is not admin, filter by their venue name
-        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+        if (!finalVenueFilter && !isAdmin && userFullName) {
             finalVenueFilter = userFullName;
             console.log('📊 TIMELINE ANALYTICS - Applied auto venue filter:', finalVenueFilter);
         }
@@ -374,10 +399,16 @@ router.get('/stats/top-subareas', auth, async (req, res) => {
     try {
         const { from, to, limit = 10, venueFilter } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 TOP SUBAREAS - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
             frontendVenueFilter: venueFilter
         });
@@ -385,7 +416,7 @@ router.get('/stats/top-subareas', auth, async (req, res) => {
         let finalVenueFilter = venueFilter; // Use frontend-provided filter first
         
         // If no frontend filter provided and user is not admin, filter by their venue name
-        if (!finalVenueFilter && userRole !== 'admin' && userFullName) {
+        if (!finalVenueFilter && !isAdmin && userFullName) {
             finalVenueFilter = userFullName;
             console.log('📊 TOP SUBAREAS - Applied auto venue filter:', finalVenueFilter);
         }
@@ -414,19 +445,25 @@ router.get('/stats/user-clicks/:venueId', auth, async (req, res) => {
         const { venueId } = req.params;
         const { from, to } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('Request parameters:');
         console.log('- venueId:', venueId);
         console.log('- from:', from);
         console.log('- to:', to);
         console.log('- userRole:', userRole);
+        console.log('- userRoleName:', userRoleName);
+        console.log('- isAdmin:', isAdmin);
         console.log('- userFullName:', userFullName);
         
         // Check if user has access to this venue data
         // For now, allow all authenticated users to view user click details
         // TODO: Implement proper venue ownership check
-        if (userRole !== 'admin') {
+        if (!isAdmin) {
             console.log('Non-admin user accessing venue data - venue owner check needed');
             // We could implement venue ownership check here later
             // For now, we'll allow access but limit user info based on role
@@ -435,7 +472,7 @@ router.get('/stats/user-clicks/:venueId', auth, async (req, res) => {
         console.log('Access granted');
         
         // Include user contact info for all authenticated users
-        const includeUserInfo = true; // Changed from: userRole === 'admin'
+        const includeUserInfo = true; // Changed from: isAdmin
         console.log('includeUserInfo:', includeUserInfo);
         
         const userClicks = await analyticsService.getUserClickDetails(venueId, from, to, true);
@@ -467,10 +504,16 @@ router.get('/stats/venue-timeline/:venueId', auth, async (req, res) => {
         const { venueId } = req.params;
         const { from, to } = req.query;
         const userRole = req.user?.role || req.user?.userdata?.role;
+        const userRoleName = req.user?.rolename || req.user?.userdata?.rolename;
         const userFullName = getUserFullName(req.user);
+        
+        // Check if user is admin - check both role and rolename fields
+        const isAdmin = userRole === 'admin' || userRoleName === 'admin';
         
         console.log('📊 VENUE TIMELINE - User info:', {
             userRole,
+            userRoleName,
+            isAdmin,
             userFullName,
             venueId
         });
@@ -478,7 +521,7 @@ router.get('/stats/venue-timeline/:venueId', auth, async (req, res) => {
         // Check if user has access to this venue data
         // For now, allow all authenticated users to view venue timeline data
         // TODO: Implement proper venue ownership check
-        // if (userRole !== 'admin') {
+        // if (!isAdmin) {
         //     console.log('Non-admin user accessing venue timeline data - venue owner check needed');
         //     // We could implement venue ownership check here later
         // }
