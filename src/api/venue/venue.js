@@ -114,6 +114,413 @@ router.post('/:id/reviews', async (req, res) => {
 //       res.status(400).json({ message: error.message });
 //     }
 //   });
+
+// Competition Analysis API endpoint - Get venues within specified distance for competition analysis
+router.get('/competition/:venueId', async (req, res) => {
+    try {
+        console.log('=== COMPETITION ANALYSIS START ===');
+        const venueId = req.params.venueId;
+        const distance = parseInt(req.query.distance) || 5; // Default 5km
+        const page = parseInt(req.query.pageNumber, 10) || 1;
+        const limit = parseInt(req.query.pageSize, 10) || 100;
+        const skip = (page - 1) * limit;
+
+        console.log('Request parameters:', { venueId, distance, page, limit, skip });
+
+        // First, get the current venue details to get its coordinates
+        console.log('Step 1: Finding venue by ID:', venueId);
+        const currentVenue = await Venue.findById(venueId);
+        if (!currentVenue) {
+            console.log('ERROR: Venue not found');
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Venue not found' 
+            });
+        }
+        console.log("Test for currentVenue data")
+        console.log(currentVenue)
+        
+        // Debug field access
+        console.log('=== FIELD ACCESS DEBUG ===');
+        console.log('currentVenue.lat:', currentVenue.lat);
+        console.log('currentVenue.lng:', currentVenue.lng);
+        console.log('currentVenue["lat"]:', currentVenue["lat"]);
+        console.log('currentVenue["lng"]:', currentVenue["lng"]);
+        console.log('Direct access via toObject():', currentVenue.toObject().lat, currentVenue.toObject().lng);
+        console.log('All keys in venue object:', Object.keys(currentVenue.toObject()));
+        console.log('Has lat property:', 'lat' in currentVenue.toObject());
+        console.log('Has lng property:', 'lng' in currentVenue.toObject());
+        
+        // Let's try to find coordinate fields with different names
+        const venueObj = currentVenue.toObject();
+        const coordinateFields = Object.keys(venueObj).filter(key => 
+            key.toLowerCase().includes('lat') || 
+            key.toLowerCase().includes('lng') || 
+            key.toLowerCase().includes('lon') ||
+            key.toLowerCase().includes('coord')
+        );
+        console.log('Coordinate-related fields:', coordinateFields);
+        
+        coordinateFields.forEach(field => {
+            console.log(`${field}:`, venueObj[field]);
+        });
+
+        // Get coordinates from the venue object
+        const venueData = currentVenue.toObject();
+        const venueLat = venueData.lat;
+        const venueLng = venueData.lng;
+        
+        console.log('Extracted coordinates:', { venueLat, venueLng });
+
+        // If venue doesn't have coordinates, return error
+        if (!venueLat || !venueLng || 
+            isNaN(parseFloat(venueLat)) || isNaN(parseFloat(venueLng))) {
+            console.log('ERROR: Invalid coordinates detected');
+            console.log('Coordinate validation failed:', {
+                hasLat: !!venueLat,
+                hasLng: !!venueLng,
+                latIsNaN: isNaN(parseFloat(venueLat)),
+                lngIsNaN: isNaN(parseFloat(venueLng))
+            });
+            return res.status(400).json({
+                success: false,
+                message: 'Current venue does not have valid location coordinates. Please update venue coordinates to use competition analysis.',
+                error: 'INVALID_COORDINATES',
+                currentVenue: {
+                    id: currentVenue._id,
+                    name: currentVenue.name,
+                    cityname: currentVenue.cityname,
+                    lat: venueLat,
+                    lng: venueLng
+                },
+                data: {
+                    competitionVenues: [],
+                    statistics: {
+                        totalCompetitors: 0,
+                        avgCompetitorPrice: 0,
+                        minCompetitorPrice: 0,
+                        maxCompetitorPrice: 0,
+                        avgDistance: 0,
+                        priceAdvantage: 0
+                    },
+                    pagination: {
+                        currentPage: 1,
+                        pageSize: 100,
+                        totalCount: 0,
+                        totalPages: 0
+                    }
+                }
+            });
+        }
+
+        console.log('Step 3: Coordinates are valid, proceeding with analysis');
+        const currentLat = parseFloat(venueLat);
+        const currentLng = parseFloat(venueLng);
+        console.log('Parsed coordinates:', { currentLat, currentLng });
+
+        // Build aggregation pipeline for nearby venues
+        console.log('Step 4: Building aggregation pipeline');
+        const pipeline = [
+            {
+                $match: {
+                    _id: { $ne: mongoose.Types.ObjectId(venueId) }, // Exclude current venue
+                    disable: false,
+                    status: true,
+                    lat: { $exists: true, $ne: null, $ne: "" },
+                    lng: { $exists: true, $ne: null, $ne: "" }
+                }
+            },
+            {
+                $addFields: {
+                    lat: { $toDouble: "$lat" },
+                    lng: { $toDouble: "$lng" },
+                    distance: {
+                        $let: {
+                            vars: {
+                                earthRadius: 6371, // Earth's radius in kilometers
+                                lat1Rad: { $multiply: [{ $degreesToRadians: currentLat }, 1] },
+                                lat2Rad: { $multiply: [{ $degreesToRadians: { $toDouble: "$lat" } }, 1] },
+                                deltaLatRad: { 
+                                    $multiply: [
+                                        { $degreesToRadians: { $subtract: [{ $toDouble: "$lat" }, currentLat] } }, 
+                                        1
+                                    ] 
+                                },
+                                deltaLngRad: { 
+                                    $multiply: [
+                                        { $degreesToRadians: { $subtract: [{ $toDouble: "$lng" }, currentLng] } }, 
+                                        1
+                                    ] 
+                                }
+                            },
+                            in: {
+                                $multiply: [
+                                    "$$earthRadius",
+                                    {
+                                        $multiply: [
+                                            2,
+                                            {
+                                                $asin: {
+                                                    $sqrt: {
+                                                        $add: [
+                                                            {
+                                                                $multiply: [
+                                                                    { $sin: { $divide: ["$$deltaLatRad", 2] } },
+                                                                    { $sin: { $divide: ["$$deltaLatRad", 2] } }
+                                                                ]
+                                                            },
+                                                            {
+                                                                $multiply: [
+                                                                    { $cos: "$$lat1Rad" },
+                                                                    { $cos: "$$lat2Rad" },
+                                                                    { $sin: { $divide: ["$$deltaLngRad", 2] } },
+                                                                    { $sin: { $divide: ["$$deltaLngRad", 2] } }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $match: {
+                    distance: { $lte: distance }
+                }
+            },
+            {
+                $lookup: {
+                    from: "subareaes",
+                    localField: "subareaid",
+                    foreignField: "_id",
+                    as: "subarea"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$subarea",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $addFields: {
+                    avgPrice: {
+                        $cond: {
+                            if: { 
+                                $and: [
+                                    { $gt: [{ $size: { $ifNull: ["$foodMenuType.veg_food", []] } }, 0] },
+                                    { $gt: [{ $size: { $ifNull: ["$foodMenuType.non_veg_food", []] } }, 0] }
+                                ]
+                            },
+                            then: {
+                                $divide: [
+                                    {
+                                        $add: [
+                                            { $toDouble: { $arrayElemAt: ["$foodMenuType.veg_food.value", 0] } },
+                                            { $toDouble: { $arrayElemAt: ["$foodMenuType.non_veg_food.value", 0] } }
+                                        ]
+                                    },
+                                    2
+                                ]
+                            },
+                            else: {
+                                $cond: {
+                                    if: { $gt: [{ $size: { $ifNull: ["$foodMenuType.veg_food", []] } }, 0] },
+                                    then: { $toDouble: { $arrayElemAt: ["$foodMenuType.veg_food.value", 0] } },
+                                    else: { $toDouble: { $arrayElemAt: ["$foodMenuType.non_veg_food.value", 0] } }
+                                }
+                            }
+                        }
+                    },
+                    vegPrice: { 
+                        $cond: {
+                            if: { $gt: [{ $size: { $ifNull: ["$foodMenuType.veg_food", []] } }, 0] },
+                            then: { $toDouble: { $arrayElemAt: ["$foodMenuType.veg_food.value", 0] } },
+                            else: 0
+                        }
+                    },
+                    nonVegPrice: { 
+                        $cond: {
+                            if: { $gt: [{ $size: { $ifNull: ["$foodMenuType.non_veg_food", []] } }, 0] },
+                            then: { $toDouble: { $arrayElemAt: ["$foodMenuType.non_veg_food.value", 0] } },
+                            else: 0
+                        }
+                    }
+                }
+            },
+            {
+                $sort: { distance: 1 }
+            },
+            {
+                $skip: skip
+            },
+            {
+                $limit: limit
+            },
+            {
+                $project: {
+                    name: 1,
+                    cityname: 1,
+                    subarea: "$subarea.name",
+                    capacity: 1,
+                    distance: { $round: ["$distance", 1] },
+                    avgPrice: { $round: [{ $ifNull: ["$avgPrice", 0] }, 0] },
+                    vegPrice: { $round: [{ $ifNull: ["$vegPrice", 0] }, 0] },
+                    nonVegPrice: { $round: [{ $ifNull: ["$nonVegPrice", 0] }, 0] },
+                    minPrice: 1,
+                    maxPrice: 1,
+                    theaterSitting: 1,
+                    amenities: 1,
+                    eazyVenueRating: 1,
+                    googleRating: 1,
+                    assured: 1,
+                    lat: 1,
+                    lng: 1,
+                    address: 1,
+                    email: 1,
+                    mobileNumber: 1,
+                    propertyType: 1,
+                    bookingPrice: 1,
+                    venueImage: 1
+                }
+            }
+        ];
+
+        console.log('Step 5: Executing aggregation pipeline');
+        console.log('Pipeline match stage:', JSON.stringify(pipeline[0], null, 2));
+        const competitionVenues = await Venue.aggregate(pipeline);
+        console.log('Step 6: Aggregation completed. Found venues:', competitionVenues.length);
+
+        // Get count of all venues within distance (without pagination)
+        console.log('Step 7: Getting total count');
+        const countPipeline = pipeline.slice(0, -2); // Remove skip and limit
+        countPipeline.push({ $count: "total" });
+        const countResult = await Venue.aggregate(countPipeline);
+        const totalCount = countResult.length > 0 ? countResult[0].total : 0;
+        console.log('Total count result:', totalCount);
+
+        // Calculate statistics
+        console.log('Step 8: Calculating statistics');
+        let statistics = {
+            totalCompetitors: totalCount,
+            avgCompetitorPrice: 0,
+            minCompetitorPrice: 0,
+            maxCompetitorPrice: 0,
+            avgDistance: 0,
+            priceAdvantage: 0
+        };
+
+        if (competitionVenues.length > 0) {
+            const venuesWithPrice = competitionVenues.filter(v => v.avgPrice > 0);
+            const venuesWithDistance = competitionVenues.filter(v => v.distance !== undefined);
+
+            if (venuesWithPrice.length > 0) {
+                const prices = venuesWithPrice.map(v => v.avgPrice);
+                statistics.avgCompetitorPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+                statistics.minCompetitorPrice = Math.min(...prices);
+                statistics.maxCompetitorPrice = Math.max(...prices);
+
+                // Calculate current venue's average price for comparison
+                let currentAvgPrice = 0;
+                if (currentVenue.foodMenuType) {
+                    const vegPrice = currentVenue.foodMenuType.veg_food?.[0]?.value || 0;
+                    const nonVegPrice = currentVenue.foodMenuType.non_veg_food?.[0]?.value || 0;
+                    
+                    if (vegPrice > 0 && nonVegPrice > 0) {
+                        currentAvgPrice = (vegPrice + nonVegPrice) / 2;
+                    } else if (vegPrice > 0) {
+                        currentAvgPrice = vegPrice;
+                    } else if (nonVegPrice > 0) {
+                        currentAvgPrice = nonVegPrice;
+                    }
+                }
+
+                if (currentAvgPrice > 0) {
+                    statistics.priceAdvantage = Math.round(statistics.avgCompetitorPrice - currentAvgPrice);
+                }
+            }
+
+            if (venuesWithDistance.length > 0) {
+                const distances = venuesWithDistance.map(v => v.distance);
+                statistics.avgDistance = Math.round((distances.reduce((a, b) => a + b, 0) / distances.length) * 10) / 10;
+            }
+        }
+
+        // Format venue images
+        const formattedVenues = competitionVenues.map(venue => ({
+            ...venue,
+            id: venue._id.toString(),
+            venueImage: venue.venueImage ? venue.venueImage.map(img => ({
+                ...img,
+                venue_image_src: frontEnd.picPath + "/" + picture.showVenuePicFolderPath + img.venue_image_src
+            })) : [],
+            amenities: venue.amenities ? venue.amenities.split(',').map(a => a.trim()).filter(a => a) : [],
+            rating: venue.eazyVenueRating || venue.googleRating || 0,
+            propertyType: venue.propertyType?.name || ''
+        }));
+
+        console.log('Step 9: Formatted venues for response:');
+        console.log('Number of formatted venues:', formattedVenues.length);
+        console.log('First venue (if exists):', formattedVenues[0] ? {
+            id: formattedVenues[0].id,
+            name: formattedVenues[0].name,
+            distance: formattedVenues[0].distance,
+            avgPrice: formattedVenues[0].avgPrice,
+            lat: formattedVenues[0].lat,
+            lng: formattedVenues[0].lng
+        } : 'No venues');
+
+        console.log('Step 10: Sending successful response');
+        res.status(200).json({
+            success: true,
+            data: {
+                currentVenue: {
+                    id: currentVenue._id.toString(),
+                    name: currentVenue.name,
+                    cityname: currentVenue.cityname,
+                    subarea: currentVenue.subareadata?.[0]?.name || '',
+                    capacity: currentVenue.capacity,
+                    lat: venueLat,
+                    lng: venueLng
+                },
+                competitionVenues: formattedVenues,
+                statistics: statistics,
+                pagination: {
+                    currentPage: page,
+                    pageSize: limit,
+                    totalCount: totalCount,
+                    totalPages: Math.ceil(totalCount / limit)
+                },
+                filters: {
+                    distance: distance,
+                    center: {
+                        latitude: currentLat,
+                        longitude: currentLng
+                    }
+                }
+            }
+        });
+        console.log('=== COMPETITION ANALYSIS END ===');
+
+    } catch (error) {
+        console.error('=== COMPETITION ANALYSIS ERROR ===');
+        console.error('Error in competition analysis:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch competition analysis',
+            error: error.message
+        });
+    }
+});
+
+
 router.post('/', auth, async (req, res) => {
     try {
         const userId = cipher.getUserFromToken(req);
@@ -1355,7 +1762,7 @@ function getCategory() {
                         var catlist = data.items;
                         catlist.forEach(element => {
                             parent_category.push({ id: element.id, name: element.name });
-                        })
+                        });
 
                     },
 
@@ -1460,6 +1867,7 @@ router.post("/uploadCSV", auth, async (req, res) => {
                                                 if (element !== "") {
                                                     const categoryobj = parentCategory.find(o => o.name === element.trim());
                                                     if (categoryobj['id']) {
+
                                                         categoryarray.push({ 'id': categoryobj['id'].toString(), name: categoryobj['name'] },);
                                                     }
                                                 }
