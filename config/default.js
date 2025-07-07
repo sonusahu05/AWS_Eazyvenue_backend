@@ -4,10 +4,10 @@ module.exports = {
     root: "/api",
   },
   frontEnd: {
-        // domain: 'https://eazyvenue.com',
-        // picPath: 'https://api.eazyvenue.com'
-        domain: 'https://localhost:4200',
-        picPath: 'http://localhost:3006',
+        domain: 'https://eazyvenue.com',
+        picPath: 'https://api.eazyvenue.com'
+        // domain: 'https://localhost:4200',
+        // picPath: 'http://localhost:3006',
     },
   auth: {
     jwt: {
