@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-let User = require('./User');
+let User = require('../model/User');
 let Role = require('./UserRole');
 const Int32 = require("mongoose-int32").loadType(mongoose);
 const userSchema = new mongoose.Schema({

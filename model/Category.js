@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-let User = require('./User');
+let User = require('../model/User');
 // const categorySchema = new Schema({
 //     _id: Schema.Types.ObjectId,
 // 	name:String,
