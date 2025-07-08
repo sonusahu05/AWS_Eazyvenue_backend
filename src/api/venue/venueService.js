@@ -203,8 +203,10 @@ class VenueService {
                 citycode: venue.citycode,
                 // subarea: venue.subarea,
                 zipcode: venue.zipcode,
-                latitude: venue.latitude,
-                longitude: venue.longitude,
+                lat: venue.lat,
+                lng: venue.lng,
+                latitude: venue.lat,   // For frontend compatibility
+                longitude: venue.lng,  // For frontend compatibility
                 featured: venue.featured,
                 assured: venue.assured,
                 status: venue.status,
@@ -290,8 +292,10 @@ class VenueService {
                 citycode: venue.citycode,
                 // subarea: venue.subarea,
                 zipcode: venue.zipcode,
-                latitude: venue.latitude,
-                longitude: venue.longitude,
+                lat: venue.lat,
+                lng: venue.lng,
+                latitude: venue.lat,   // For frontend compatibility
+                longitude: venue.lng,  // For frontend compatibility
                 featured: venue.featured,
                 assured: venue.assured,
                 minPrice: venue.minPrice,

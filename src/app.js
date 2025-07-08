@@ -99,7 +99,7 @@ function clientErrorHandler(err, req, res, next) {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// // CORS configuration
+// // CORS configuration comment
 // app.use(cors({
 //   origin: [
 //     'http://localhost:4200',

@@ -77,8 +77,8 @@ const venueSchema = new mongoose.Schema({
     citycode: String,
     subareaid: { type: Schema.Types.ObjectId, ref: "Subarea" },
     zipcode: String,
-    latitude: String,
-    longitude: String,
+    lat: String,
+    lng: String,
     status: {
         type: Boolean,
         default: true
