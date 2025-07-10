@@ -201,76 +201,26 @@ router.get('/competition/:venueId', async (req, res) => {
         const currentLng = parseFloat(venueLng);
         console.log('Parsed coordinates:', { currentLat, currentLng });
 
-        // Build aggregation pipeline for nearby venues
-        console.log('Step 4: Building aggregation pipeline');
-        console.log('Current venue ID for exclusion:', venueId, 'Type:', typeof venueId);
-        console.log('Current venue ObjectId:', currentVenue._id, 'Type:', typeof currentVenue._id);
-        
-        // First, let's check how many venues exist in total for debugging
-        const totalVenuesInDB = await Venue.countDocuments({});
-        console.log('🔍 DEBUGGING FILTERS:');
-        console.log('Total venues in database:', totalVenuesInDB);
-        
-        // Check how many venues pass each filter step by step
-        const venuesNotCurrent = await Venue.countDocuments({ _id: { $ne: currentVenue._id } });
-        console.log('Venues excluding current venue:', venuesNotCurrent);
-        
-        const venuesNotDisabled = await Venue.countDocuments({ 
-            _id: { $ne: currentVenue._id },
-            disable: { $ne: true } // More inclusive - allow null/undefined disable
-        });
-        console.log('Venues not disabled:', venuesNotDisabled);
-        
-        const venuesWithStatus = await Venue.countDocuments({ 
-            _id: { $ne: currentVenue._id },
-            disable: { $ne: true },
-            status: { $ne: false } // More inclusive - allow null/undefined status
-        });
-        console.log('Venues with good status:', venuesWithStatus);
-        
-        const venuesWithCoordinates = await Venue.countDocuments({ 
-            _id: { $ne: currentVenue._id },
-            disable: { $ne: true },
-            status: { $ne: false },
-            $and: [
-                {
-                    $or: [
-                        { lat: { $exists: true, $ne: null, $ne: "" } },
-                        { latitude: { $exists: true, $ne: null, $ne: "" } }
-                    ]
-                },
-                {
-                    $or: [
-                        { lng: { $exists: true, $ne: null, $ne: "" } },
-                        { longitude: { $exists: true, $ne: null, $ne: "" } }
-                    ]
-                }
-            ]
-        });
-        console.log('Venues with any coordinates:', venuesWithCoordinates);
-        
-        // Sample a few venues to see their coordinate fields
-        const sampleVenues = await Venue.find({}).limit(5).select('name lat lng latitude longitude disable status');
-        console.log('Sample venue coordinate fields:');
-        sampleVenues.forEach((v, i) => {
-            console.log(`Venue ${i + 1} (${v.name}):`, {
-                lat: v.lat,
-                lng: v.lng, 
-                latitude: v.latitude,
-                longitude: v.longitude,
-                disable: v.disable,
-                status: v.status
+        // Validate current venue coordinates are within valid ranges
+        if (currentLat < -90 || currentLat > 90 || currentLng < -180 || currentLng > 180) {
+            console.log('ERROR: Current venue coordinates out of valid range');
+            return res.status(400).json({
+                success: false,
+                message: 'Current venue coordinates are out of valid range. Latitude must be between -90 and 90, longitude between -180 and 180.',
+                error: 'INVALID_COORDINATE_RANGE'
             });
-        });
+        }
+
+        // Build simplified aggregation pipeline to get all venues with coordinates
+        console.log('Step 4: Building simplified aggregation pipeline (no distance filtering in MongoDB)');
         
-        const pipeline = [
+        // Get all venues with coordinates - let frontend handle distance filtering
+        const simplePipeline = [
             {
                 $match: {
-                    _id: { $ne: currentVenue._id },
-                    // Make filters more inclusive
-                    disable: { $ne: true }, // Allow null/undefined disable fields
-                    status: { $ne: false }, // Allow null/undefined status fields
-                    // Support both lat/lng and latitude/longitude field names - must have both coordinates
+                    disable: { $ne: true },
+                    status: { $ne: false },
+                    // Support both lat/lng and latitude/longitude field names
                     $and: [
                         {
                             $or: [
@@ -285,107 +235,6 @@ router.get('/competition/:venueId', async (req, res) => {
                             ]
                         }
                     ]
-                }
-            },
-            {
-                $addFields: {
-                    // Normalize coordinate fields - use lat/lng if available, otherwise latitude/longitude
-                    normalizedLat: {
-                        $cond: {
-                            if: { $and: [{ $ne: ["$lat", null] }, { $ne: ["$lat", ""] }] },
-                            then: { $toDouble: "$lat" },
-                            else: { $toDouble: "$latitude" }
-                        }
-                    },
-                    normalizedLng: {
-                        $cond: {
-                            if: { $and: [{ $ne: ["$lng", null] }, { $ne: ["$lng", ""] }] },
-                            then: { $toDouble: "$lng" },
-                            else: { $toDouble: "$longitude" }
-                        }
-                    }
-                }
-            },
-            {
-                $addFields: {
-                    distance: {
-                        $let: {
-                            vars: {
-                                earthRadius: 6371, // Earth's radius in kilometers
-                                lat1Rad: { $multiply: [{ $degreesToRadians: currentLat }, 1] },
-                                lat2Rad: { $multiply: [{ $degreesToRadians: "$normalizedLat" }, 1] },
-                                deltaLatRad: { 
-                                    $multiply: [
-                                        { $degreesToRadians: { $subtract: ["$normalizedLat", currentLat] } }, 
-                                        1
-                                    ] 
-                                },
-                                deltaLngRad: { 
-                                    $multiply: [
-                                        { $degreesToRadians: { $subtract: ["$normalizedLng", currentLng] } }, 
-                                        1
-                                    ] 
-                                }
-                            },
-                            in: {
-                                $multiply: [
-                                    "$$earthRadius",
-                                    {
-                                        $multiply: [
-                                            2,
-                                            {
-                                                $asin: {
-                                                    $sqrt: {
-                                                        $add: [
-                                                            {
-                                                                $multiply: [
-                                                                    { $sin: { $divide: ["$$deltaLatRad", 2] } },
-                                                                    { $sin: { $divide: ["$$deltaLatRad", 2] } }
-                                                                ]
-                                                            },
-                                                            {
-                                                                $multiply: [
-                                                                    { $cos: "$$lat1Rad" },
-                                                                    { $cos: "$$lat2Rad" },
-                                                                    { $sin: { $divide: ["$$deltaLngRad", 2] } },
-                                                                    { $sin: { $divide: ["$$deltaLngRad", 2] } }
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            // Add a debugging stage to see all distances before filtering
-            {
-                $addFields: {
-                    debugInfo: {
-                        venueId: "$_id",
-                        venueName: "$name",
-                        distance: "$distance",
-                        normalizedLat: "$normalizedLat",
-                        normalizedLng: "$normalizedLng",
-                        originalLat: "$lat",
-                        originalLng: "$lng",
-                        latitude: "$latitude",
-                        longitude: "$longitude"
-                    }
-                }
-            },
-            {
-                $match: {
-                    distance: { $lte: distance },
-                    // Also ensure the distance calculation didn't result in NaN
-                    distance: { $ne: null },
-                    normalizedLat: { $ne: null },
-                    normalizedLng: { $ne: null }
                 }
             },
             {
@@ -445,25 +294,24 @@ router.get('/competition/:venueId', async (req, res) => {
                             then: { $toDouble: { $arrayElemAt: ["$foodMenuType.non_veg_food.value", 0] } },
                             else: 0
                         }
+                    },
+                    // Add flag to identify current venue
+                    isCurrentVenue: {
+                        $cond: {
+                            if: { $eq: ["$_id", currentVenue._id] },
+                            then: true,
+                            else: false
+                        }
                     }
                 }
             },
             {
-                $sort: { distance: 1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
                 $project: {
                     name: 1,
+                    metaUrl: 1,
                     cityname: 1,
                     subarea: "$subarea.name",
                     capacity: 1,
-                    distance: { $round: ["$distance", 1] },
                     avgPrice: { $round: [{ $ifNull: ["$avgPrice", 0] }, 0] },
                     vegPrice: { $round: [{ $ifNull: ["$vegPrice", 0] }, 0] },
                     nonVegPrice: { $round: [{ $ifNull: ["$nonVegPrice", 0] }, 0] },
@@ -476,97 +324,22 @@ router.get('/competition/:venueId', async (req, res) => {
                     assured: 1,
                     lat: 1,
                     lng: 1,
+                    latitude: 1,
+                    longitude: 1,
                     address: 1,
                     email: 1,
                     mobileNumber: 1,
                     propertyType: 1,
                     bookingPrice: 1,
-                    venueImage: 1
+                    venueImage: 1,
+                    isCurrentVenue: 1
                 }
             }
         ];
 
-        console.log('Step 5: Executing aggregation pipeline');
-        console.log('Pipeline match stage:', JSON.stringify(pipeline[0], null, 2));
-        
-        // Debug: Run intermediate aggregations to see where venues are lost
-        console.log('🔍 DEBUGGING PIPELINE STEPS:');
-        
-        // Step 1: After initial match (before distance calculation)
-        const afterInitialMatch = await Venue.aggregate([pipeline[0]]);
-        console.log(`After initial match: ${afterInitialMatch.length} venues`);
-        
-        // Step 2: After coordinate normalization
-        const afterCoordNormalization = await Venue.aggregate([pipeline[0], pipeline[1]]);
-        console.log(`After coordinate normalization: ${afterCoordNormalization.length} venues`);
-        
-        // Log some coordinate samples
-        console.log('Sample coordinate normalization:');
-        afterCoordNormalization.slice(0, 3).forEach((v, i) => {
-            console.log(`Sample ${i + 1} (${v.name}):`, {
-                originalLat: v.lat,
-                originalLng: v.lng,
-                latitude: v.latitude,
-                longitude: v.longitude,
-                normalizedLat: v.normalizedLat,
-                normalizedLng: v.normalizedLng
-            });
-        });
-        
-        // Step 3: After distance calculation (before distance filter)
-        const afterDistanceCalc = await Venue.aggregate([pipeline[0], pipeline[1], pipeline[2]]);
-        console.log(`After distance calculation: ${afterDistanceCalc.length} venues`);
-        
-        // Log distance samples
-        console.log('Sample distance calculations:');
-        afterDistanceCalc.slice(0, 5).forEach((v, i) => {
-            console.log(`Sample ${i + 1} (${v.name}):`, {
-                distance: v.distance,
-                normalizedLat: v.normalizedLat,
-                normalizedLng: v.normalizedLng,
-                targetDistance: distance
-            });
-        });
-        
-        // Step 4: After distance filter
-        const afterDistanceFilter = await Venue.aggregate([pipeline[0], pipeline[1], pipeline[2], pipeline[3], pipeline[4]]);
-        console.log(`After distance filter (≤${distance}km): ${afterDistanceFilter.length} venues`);
-        
-        // Now run the full pipeline
-        let competitionVenues = await Venue.aggregate(pipeline);
-        console.log('Step 6: Full aggregation completed. Found venues:', competitionVenues.length);
-        
-        // If no venues found with the current distance, try expanding the search
-        if (competitionVenues.length === 0 && distance < 50) {
-            console.log(`❗ No venues found within ${distance}km, trying expanded search...`);
-            
-            const expandedDistances = [10, 20, 50, 100];
-            for (const expandedDistance of expandedDistances) {
-                if (expandedDistance <= distance) continue;
-                
-                console.log(`Trying expanded distance: ${expandedDistance}km`);
-                
-                // Update the distance filter in pipeline
-                const expandedPipeline = [...pipeline];
-                expandedPipeline[4] = {
-                    $match: {
-                        distance: { $lte: expandedDistance },
-                        distance: { $ne: null },
-                        normalizedLat: { $ne: null },
-                        normalizedLng: { $ne: null }
-                    }
-                };
-                
-                const expandedResults = await Venue.aggregate(expandedPipeline);
-                console.log(`Found ${expandedResults.length} venues within ${expandedDistance}km`);
-                
-                if (expandedResults.length > 0) {
-                    competitionVenues = expandedResults;
-                    console.log(`✅ Using expanded search results with ${expandedDistance}km radius`);
-                    break;
-                }
-            }
-        }
+        console.log('Step 5: Executing simplified aggregation pipeline');
+        let competitionVenues = await Venue.aggregate(simplePipeline);
+        console.log('Step 6: Got all venues with coordinates:', competitionVenues.length);
         
         // DEBUG: Log detailed venue information
         console.log('=== RAW AGGREGATION RESULTS ===');
@@ -574,38 +347,36 @@ router.get('/competition/:venueId', async (req, res) => {
             console.log(`Venue ${index + 1}:`, {
                 id: venue._id,
                 name: venue.name,
-                distance: venue.distance,
                 lat: venue.lat,
                 lng: venue.lng,
                 avgPrice: venue.avgPrice,
                 vegPrice: venue.vegPrice,
                 nonVegPrice: venue.nonVegPrice,
+                isCurrentVenue: venue.isCurrentVenue,
                 hasAllRequiredFields: !!(venue.name && venue.cityname && venue._id)
             });
         });
 
-        // Get count of all venues within distance (without pagination)
-        console.log('Step 7: Getting total count');
-        const countPipeline = pipeline.slice(0, -2); // Remove skip and limit
-        countPipeline.push({ $count: "total" });
-        const countResult = await Venue.aggregate(countPipeline);
-        const totalCount = countResult.length > 0 ? countResult[0].total : 0;
-        console.log('Total count result:', totalCount);
+        // Get count of competitors (excluding current venue)
+        console.log('Step 7: Getting competitor count');
+        const competitorCount = competitionVenues.filter(v => !v.isCurrentVenue).length;
+        console.log('Total competitor count:', competitorCount);
 
-        // Calculate statistics
+        // Calculate statistics - exclude current venue from competitor stats
         console.log('Step 8: Calculating statistics');
+        const competitorVenues = competitionVenues.filter(v => !v.isCurrentVenue);
+        
         let statistics = {
-            totalCompetitors: totalCount,
+            totalCompetitors: competitorVenues.length, // Only count competitors, not current venue
             avgCompetitorPrice: 0,
             minCompetitorPrice: 0,
             maxCompetitorPrice: 0,
-            avgDistance: 0,
+            avgDistance: 0, // This will be calculated on frontend
             priceAdvantage: 0
         };
 
-        if (competitionVenues.length > 0) {
-            const venuesWithPrice = competitionVenues.filter(v => v.avgPrice > 0);
-            const venuesWithDistance = competitionVenues.filter(v => v.distance !== undefined);
+        if (competitorVenues.length > 0) {
+            const venuesWithPrice = competitorVenues.filter(v => v.avgPrice > 0);
 
             if (venuesWithPrice.length > 0) {
                 const prices = venuesWithPrice.map(v => v.avgPrice);
@@ -632,14 +403,9 @@ router.get('/competition/:venueId', async (req, res) => {
                     statistics.priceAdvantage = Math.round(statistics.avgCompetitorPrice - currentAvgPrice);
                 }
             }
-
-            if (venuesWithDistance.length > 0) {
-                const distances = venuesWithDistance.map(v => v.distance);
-                statistics.avgDistance = Math.round((distances.reduce((a, b) => a + b, 0) / distances.length) * 10) / 10;
-            }
         }
 
-        // Format venue images
+        // Format venue images and other data
         const formattedVenues = competitionVenues.map(venue => {
             const result = {
                 ...venue,
@@ -655,38 +421,26 @@ router.get('/competition/:venueId', async (req, res) => {
                 propertyType: venue.propertyType?.name || ''
             };
             
-            // Ensure coordinates are present
+            // Ensure coordinates are present for frontend distance calculation
             if (venue.lat !== undefined && venue.lng !== undefined) {
                 result.latitude = venue.lat;
                 result.longitude = venue.lng;
             }
-            
-            // DEBUG: Log each formatted venue
-            console.log(`Formatted venue ${venue.name}:`, {
-                id: result.id,
-                hasLatitude: 'latitude' in result,
-                hasLongitude: 'longitude' in result,
-                latitude: result.latitude,
-                longitude: result.longitude,
-                lat: result.lat,
-                lng: result.lng,
-                distance: result.distance,
-                avgPrice: result.avgPrice
-            });
             
             return result;
         });
 
         console.log('Step 9: Formatted venues for response:');
         console.log('Number of formatted venues:', formattedVenues.length);
-        console.log('Number of formatted venues:', formattedVenues.length);
         console.log('First venue (if exists):', formattedVenues[0] ? {
             id: formattedVenues[0].id,
             name: formattedVenues[0].name,
-            distance: formattedVenues[0].distance,
-            avgPrice: formattedVenues[0].avgPrice,
+            metaUrl: formattedVenues[0].metaUrl,
             lat: formattedVenues[0].lat,
-            lng: formattedVenues[0].lng
+            lng: formattedVenues[0].lng,
+            latitude: formattedVenues[0].latitude,
+            longitude: formattedVenues[0].longitude,
+            isCurrentVenue: formattedVenues[0].isCurrentVenue
         } : 'No venues');
 
         console.log('Step 10: Sending successful response');
@@ -706,16 +460,16 @@ router.get('/competition/:venueId', async (req, res) => {
                     latitude: parseFloat(venueLat),  // For frontend compatibility
                     longitude: parseFloat(venueLng)  // For frontend compatibility
                 },
-                competitionVenues: formattedVenues,
+                competitionVenues: formattedVenues, // Frontend will filter by distance
                 statistics: statistics,
                 pagination: {
                     currentPage: page,
                     pageSize: limit,
-                    totalCount: totalCount,
-                    totalPages: Math.ceil(totalCount / limit)
+                    totalCount: formattedVenues.length, // Total available venues (frontend will filter)
+                    totalPages: Math.ceil(formattedVenues.length / limit)
                 },
                 filters: {
-                    distance: distance,
+                    requestedDistance: distance, // Distance requested by frontend
                     center: {
                         lat: currentLat,
                         lng: currentLng,
@@ -729,19 +483,19 @@ router.get('/competition/:venueId', async (req, res) => {
         console.log('=== FINAL RESPONSE STRUCTURE ===');
         console.log('Response success:', responseData.success);
         console.log('Response has data:', !!responseData.data);
-        console.log('Competition venues count:', responseData.data.competitionVenues.length);
+        console.log('Total venues (all):', responseData.data.competitionVenues.length);
         console.log('Current venue:', responseData.data.currentVenue);
         console.log('Statistics:', responseData.data.statistics);
-        console.log('Pagination:', responseData.data.pagination);
         
         if (responseData.data.competitionVenues.length > 0) {
-            console.log('First competition venue sample:', {
+            console.log('First venue sample:', {
                 id: responseData.data.competitionVenues[0].id,
                 name: responseData.data.competitionVenues[0].name,
                 hasLatitude: 'latitude' in responseData.data.competitionVenues[0],
                 hasLongitude: 'longitude' in responseData.data.competitionVenues[0],
                 latitude: responseData.data.competitionVenues[0].latitude,
-                longitude: responseData.data.competitionVenues[0].longitude
+                longitude: responseData.data.competitionVenues[0].longitude,
+                isCurrentVenue: responseData.data.competitionVenues[0].isCurrentVenue
             });
         }
         
