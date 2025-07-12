@@ -244,6 +244,10 @@ class VenueService {
                 isPillarFree: venue.isPillarFree,
                 minRevenue: venue.minRevenue,
                 venuePrice: venue.venuePrice,
+                latitude: venue.latitude,
+                longitude: venue.longitude,
+                lat: venue.lat,
+                lng: venue.lng,
 
             } : {};
         } else {
@@ -326,6 +330,10 @@ class VenueService {
                 isVIPSection: venue.isVIPSection,
                 isRooms: venue.isRooms,
                 isPillarFree: venue.isPillarFree,
+                latitude: venue.latitude,
+                longitude: venue.longitude,
+                lat: venue.lat,
+                lng: venue.lng,
             } : {};
         }
     }

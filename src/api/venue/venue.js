@@ -721,6 +721,8 @@ router.post('/', auth, async (req, res) => {
                     created_by: userId,
                     minRevenue: req.body.minRevenue,
                     peopleBooked: req.body.peopleBooked,
+                    lat: req.body.lat,
+                    lng: req.body.lng,
                 });
                 //console.log(venueObj);
                 venueService
