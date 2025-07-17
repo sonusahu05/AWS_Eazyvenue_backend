@@ -1069,6 +1069,14 @@ class VenueClickRepository extends BaseRepository {
             throw new Error(`Failed to get subarea stats: ${error.message}`);
         }
     }
+    async aggregate(pipeline) {
+        try {
+            const db = await this.dbClient;
+            return await db.collection(this.collection).aggregate(pipeline).toArray();
+        } catch (error) {
+            throw new Error(`Aggregation failed: ${error.message}`);
+        }
+    }
 }
 
 module.exports = VenueClickRepository;

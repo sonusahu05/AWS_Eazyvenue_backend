@@ -27,12 +27,18 @@ class AnalyticsService {
     }
 
     calculateQualityScore(engagementData) {
-        const { timeSpentSeconds = 0, scrollDepthPercent = 0, submittedEnquiry = false } = engagementData;
+        const { 
+            timeSpentSeconds = 0, 
+            scrollDepthPercent = 0, 
+            submittedEnquiry = false,
+            actions = {}
+        } = engagementData;
         
-        // Weighted scoring algorithm
-        const timeWeight = 0.4;
-        const scrollWeight = 0.3;
-        const enquiryWeight = 0.3;
+        // Enhanced weighted scoring algorithm with actions
+        const timeWeight = 0.25;
+        const scrollWeight = 0.20;
+        const enquiryWeight = 0.25;
+        const actionsWeight = 0.30; // NEW: Weight for user actions
         
         // Normalize time spent (max 60 seconds = 1.0)
         const timeScore = Math.min(timeSpentSeconds / 60, 1);
@@ -43,10 +49,38 @@ class AnalyticsService {
         // Enquiry submission (boolean to 0 or 1)
         const enquiryScore = submittedEnquiry ? 1 : 0;
         
-        const qualityScore = (timeScore * timeWeight) + (scrollScore * scrollWeight) + (enquiryScore * enquiryWeight);
+        // NEW: Calculate actions score based on user engagement
+        let actionsScore = 0;
+        let actionCount = 0;
         
-        // Round to 2 decimal places
-        return Math.round(qualityScore * 100) / 100;
+        // Date selections (0.1 each)
+        if (actions.startFilterDate) { actionsScore += 0.1; actionCount++; }
+        if (actions.endFilterDate) { actionsScore += 0.1; actionCount++; }
+        
+        // Event details (0.15 each)
+        if (actions.eventDuration) { actionsScore += 0.15; actionCount++; }
+        if (actions.occasion) { actionsScore += 0.15; actionCount++; }
+        if (actions.guestCount) { actionsScore += 0.15; actionCount++; }
+        
+        // Food and decor selections (0.2 each)
+        if (actions.foodMenuType) { actionsScore += 0.2; actionCount++; }
+        if (actions.weddingDecorType) { actionsScore += 0.2; actionCount++; }
+        
+        // High-intent actions (0.3 each)
+        if (actions.clickedOnReserved) { actionsScore += 0.3; actionCount++; }
+        if (actions.clickedOnBookNow) { actionsScore += 0.4; actionCount++; }
+        if (actions.madePayment) { actionsScore += 0.5; actionCount++; } // Highest weight
+        
+        // Normalize actions score (cap at 1.0)
+        actionsScore = Math.min(actionsScore, 1.0);
+        
+        const qualityScore = (timeScore * timeWeight) + 
+                           (scrollScore * scrollWeight) + 
+                           (enquiryScore * enquiryWeight) + 
+                           (actionsScore * actionsWeight);
+        
+        // Round to 3 decimal places
+        return Math.round(qualityScore * 1000) / 1000;
     }
 
     async trackVenueInterest(trackingData) {
@@ -77,7 +111,7 @@ class AnalyticsService {
                 }
             }
 
-            // Calculate quality score
+            // Calculate enhanced quality score
             const qualityScore = this.calculateQualityScore(engagement);
             
             // Check if user is returning
@@ -114,18 +148,281 @@ class AnalyticsService {
                 engagement: {
                     timeSpentSeconds: engagement.timeSpentSeconds || 0,
                     scrollDepthPercent: engagement.scrollDepthPercent || 0,
-                    submittedEnquiry: engagement.submittedEnquiry || false
+                    submittedEnquiry: engagement.submittedEnquiry || false,
+                    // NEW: Include actions in engagement data
+                    actions: engagement.actions || {
+                        startFilterDate: null,
+                        endFilterDate: null,
+                        eventDuration: null,
+                        occasion: null,
+                        sendEnquiryClicked: false,
+                        weddingDecorType: null,
+                        weddingDecorPrice: null,
+                        foodMenuType: null,
+                        foodMenuPrice: null,
+                        foodMenuPlate: null,
+                        guestCount: null,
+                        clickedOnReserved: false,
+                        clickedOnBookNow: false,
+                        madePayment: false
+                    }
                 },
-                qualityScore
+                qualityScore,
+                // NEW: Metadata for analytics
+                qualityScoreBackfilled: false,
+                qualityScoreBackfilledAt: null
             };
 
-            console.log('Processed click data for storage:', JSON.stringify(clickData, null, 2));
+            console.log('Processed enhanced click data for storage:', JSON.stringify(clickData, null, 2));
 
             return await this.venueClickRepository.addClick(clickData);
         } catch (error) {
             throw new Error(`Failed to track venue interest: ${error.message}`);
         }
     }
+
+/**
+ * Get funnel conversion analytics
+ */
+async getFunnelAnalytics(venueId, dateRange = {}) {
+    try {
+        const pipeline = [
+            {
+                $match: {
+                    venueId: venueId,
+                    ...(dateRange.start && dateRange.end ? {
+                        timestamp: {
+                            $gte: new Date(dateRange.start),
+                            $lte: new Date(dateRange.end)
+                        }
+                    } : {})
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalVisits: { $sum: 1 },
+                    occasionSelected: {
+                        $sum: { $cond: [{ $ne: ['$engagement.actions.occasion', null] }, 1, 0] }
+                    },
+                    dateSelected: {
+                        $sum: { $cond: [{ $ne: ['$engagement.actions.startFilterDate', null] }, 1, 0] }
+                    },
+                    guestCountSelected: {
+                        $sum: { $cond: [{ $ne: ['$engagement.actions.guestCount', null] }, 1, 0] }
+                    },
+                    foodSelected: {
+                        $sum: { $cond: [{ $ne: ['$engagement.actions.foodMenuType', null] }, 1, 0] }
+                    },
+                    decorSelected: {
+                        $sum: { $cond: [{ $ne: ['$engagement.actions.weddingDecorType', null] }, 1, 0] }
+                    },
+                    enquiriesSubmitted: {
+                        $sum: { $cond: ['$engagement.submittedEnquiry', 1, 0] }
+                    },
+                    reservedClicks: {
+                        $sum: { $cond: ['$engagement.actions.clickedOnReserved', 1, 0] }
+                    },
+                    bookNowClicks: {
+                        $sum: { $cond: ['$engagement.actions.clickedOnBookNow', 1, 0] }
+                    },
+                    paymentsCompleted: {
+                        $sum: { $cond: ['$engagement.actions.madePayment', 1, 0] }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    steps: [
+                        { 
+                            name: 'Page Visit', 
+                            count: '$totalVisits', 
+                            percentage: 100 
+                        },
+                        { 
+                            name: 'Occasion Selected', 
+                            count: '$occasionSelected', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$occasionSelected', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        },
+                        { 
+                            name: 'Date Selected', 
+                            count: '$dateSelected', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$dateSelected', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        },
+                        { 
+                            name: 'Guest Count Selected', 
+                            count: '$guestCountSelected', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$guestCountSelected', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        },
+                        { 
+                            name: 'Food Selected', 
+                            count: '$foodSelected', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$foodSelected', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        },
+                        { 
+                            name: 'Enquiry Submitted', 
+                            count: '$enquiriesSubmitted', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$enquiriesSubmitted', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        },
+                        { 
+                            name: 'Payment Completed', 
+                            count: '$paymentsCompleted', 
+                            percentage: { 
+                                $round: [{ $multiply: [{ $divide: ['$paymentsCompleted', '$totalVisits'] }, 100] }, 1] 
+                            }
+                        }
+                    ]
+                }
+            }
+        ];
+
+        const result = await this.venueClickRepository.aggregate(pipeline);
+        return result[0] || { steps: [] };
+    } catch (error) {
+        throw new Error(`Failed to get funnel analytics: ${error.message}`);
+    }
+}
+
+/**
+ * Get action-specific analytics
+ */
+async getActionAnalytics(venueId, dateRange = {}) {
+    try {
+        const pipeline = [
+            {
+                $match: {
+                    venueId: venueId,
+                    ...(dateRange.start && dateRange.end ? {
+                        timestamp: {
+                            $gte: new Date(dateRange.start),
+                            $lte: new Date(dateRange.end)
+                        }
+                    } : {})
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalVisits: { $sum: 1 },
+                    // Event Duration breakdown
+                    morningEvents: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.eventDuration', 'morning'] }, 1, 0] }
+                    },
+                    eveningEvents: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.eventDuration', 'evening'] }, 1, 0] }
+                    },
+                    fullDayEvents: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.eventDuration', 'full'] }, 1, 0] }
+                    },
+                    // Occasion breakdown
+                    weddingOccasions: {
+                        $sum: { $cond: [{ $regex: ['$engagement.actions.occasion', /wedding/i] }, 1, 0] }
+                    },
+                    // Decor type breakdown
+                    basicDecor: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.weddingDecorType', 'Basic'] }, 1, 0] }
+                    },
+                    standardDecor: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.weddingDecorType', 'Standard'] }, 1, 0] }
+                    },
+                    premiumDecor: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.weddingDecorType', 'Premium'] }, 1, 0] }
+                    },
+                    // Food plate breakdown
+                    plate1x1: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.foodMenuPlate', '1x1'] }, 1, 0] }
+                    },
+                    plate2x2: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.foodMenuPlate', '2x2'] }, 1, 0] }
+                    },
+                    plate3x3: {
+                        $sum: { $cond: [{ $eq: ['$engagement.actions.foodMenuPlate', '3x3'] }, 1, 0] }
+                    },
+                    // Average prices
+                    avgDecorPrice: { $avg: '$engagement.actions.weddingDecorPrice' },
+                    avgFoodPrice: { $avg: '$engagement.actions.foodMenuPrice' },
+                    // Action counts
+                    reservedClicks: {
+                        $sum: { $cond: ['$engagement.actions.clickedOnReserved', 1, 0] }
+                    },
+                    bookNowClicks: {
+                        $sum: { $cond: ['$engagement.actions.clickedOnBookNow', 1, 0] }
+                    },
+                    paymentsCompleted: {
+                        $sum: { $cond: ['$engagement.actions.madePayment', 1, 0] }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalVisits: 1,
+                    eventDurations: {
+                        morning: '$morningEvents',
+                        evening: '$eveningEvents',
+                        fullDay: '$fullDayEvents'
+                    },
+                    decorTypes: {
+                        basic: '$basicDecor',
+                        standard: '$standardDecor',
+                        premium: '$premiumDecor'
+                    },
+                    foodPlates: {
+                        '1x1': '$plate1x1',
+                        '2x2': '$plate2x2',
+                        '3x3': '$plate3x3'
+                    },
+                    averagePrices: {
+                        decor: { $round: ['$avgDecorPrice', 0] },
+                        food: { $round: ['$avgFoodPrice', 0] }
+                    },
+                    actionCounts: {
+                        reservedClicks: '$reservedClicks',
+                        bookNowClicks: '$bookNowClicks',
+                        paymentsCompleted: '$paymentsCompleted'
+                    },
+                    conversionRates: {
+                        reservedRate: { 
+                            $round: [{ $multiply: [{ $divide: ['$reservedClicks', '$totalVisits'] }, 100] }, 2] 
+                        },
+                        bookNowRate: { 
+                            $round: [{ $multiply: [{ $divide: ['$bookNowClicks', '$totalVisits'] }, 100] }, 2] 
+                        },
+                        paymentRate: { 
+                            $round: [{ $multiply: [{ $divide: ['$paymentsCompleted', '$totalVisits'] }, 100] }, 2] 
+                        }
+                    }
+                }
+            }
+        ];
+
+        const result = await this.venueClickRepository.aggregate(pipeline);
+        return result[0] || {
+            totalVisits: 0,
+            eventDurations: { morning: 0, evening: 0, fullDay: 0 },
+            decorTypes: { basic: 0, standard: 0, premium: 0 },
+            foodPlates: { '1x1': 0, '2x2': 0, '3x3': 0 },
+            averagePrices: { decor: 0, food: 0 },
+            actionCounts: { reservedClicks: 0, bookNowClicks: 0, paymentsCompleted: 0 },
+            conversionRates: { reservedRate: 0, bookNowRate: 0, paymentRate: 0 }
+        };
+    } catch (error) {
+        throw new Error(`Failed to get action analytics: ${error.message}`);
+    }
+}
+
+// ...existing code...
 
     async generateVenueInsights(venueId) {
         try {

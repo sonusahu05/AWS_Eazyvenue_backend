@@ -60,12 +60,54 @@ router.post('/track-venue-click', async (req, res) => {
             });
         }
 
+              // Enhanced engagement validation and sanitization
+        const sanitizedEngagement = {
+            timeSpentSeconds: engagement?.timeSpentSeconds || 0,
+            scrollDepthPercent: Math.min(engagement?.scrollDepthPercent || 0, 100),
+            submittedEnquiry: engagement?.submittedEnquiry || false,
+            qualityScore: Math.min(engagement?.qualityScore || 0, 1),
+            // NEW: Enhanced actions tracking
+            actions: engagement?.actions ? {
+                startFilterDate: engagement.actions.startFilterDate || null,
+                endFilterDate: engagement.actions.endFilterDate || null,
+                eventDuration: engagement.actions.eventDuration || null,
+                occasion: engagement.actions.occasion || null,
+                sendEnquiryClicked: Boolean(engagement.actions.sendEnquiryClicked),
+                weddingDecorType: engagement.actions.weddingDecorType || null,
+                weddingDecorPrice: typeof engagement.actions.weddingDecorPrice === 'number' ? 
+                    Math.round(engagement.actions.weddingDecorPrice) : null,
+                foodMenuType: engagement.actions.foodMenuType || null,
+                foodMenuPrice: typeof engagement.actions.foodMenuPrice === 'number' ? 
+                    Math.round(engagement.actions.foodMenuPrice) : null,
+                foodMenuPlate: engagement.actions.foodMenuPlate || null,
+                guestCount: engagement.actions.guestCount || null,
+                clickedOnReserved: Boolean(engagement.actions.clickedOnReserved),
+                clickedOnBookNow: Boolean(engagement.actions.clickedOnBookNow),
+                madePayment: Boolean(engagement.actions.madePayment)
+            } : {
+                startFilterDate: null,
+                endFilterDate: null,
+                eventDuration: null,
+                occasion: null,
+                sendEnquiryClicked: false,
+                weddingDecorType: null,
+                weddingDecorPrice: null,
+                foodMenuType: null,
+                foodMenuPrice: null,
+                foodMenuPlate: null,
+                guestCount: null,
+                clickedOnReserved: false,
+                clickedOnBookNow: false,
+                madePayment: false
+            }
+        };
+
         const trackingData = {
             venueId,
             venueName: venueName || '',
             location: location || {},
             device: device || {},
-            engagement: engagement || {},
+            engagement: sanitizedEngagement,
             user: {
                 userId: userId || null,
                 userName: userName || '',
@@ -96,6 +138,58 @@ router.post('/track-venue-click', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to track venue interest',
+            details: error.message
+        });
+    }
+});
+
+// Get funnel analytics for a venue - Admin endpoint
+router.get('/stats/funnel/:venueId', auth, async (req, res) => {
+    try {
+        const { venueId } = req.params;
+        const { from, to } = req.query;
+        
+        const dateRange = {};
+        if (from) dateRange.start = from;
+        if (to) dateRange.end = to;
+        
+        const funnelData = await analyticsService.getFunnelAnalytics(venueId, dateRange);
+        
+        res.status(200).json({
+            success: true,
+            data: funnelData
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching funnel analytics: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch funnel analytics',
+            details: error.message
+        });
+    }
+});
+
+// Get action analytics for a venue - Admin endpoint
+router.get('/stats/actions/:venueId', auth, async (req, res) => {
+    try {
+        const { venueId } = req.params;
+        const { from, to } = req.query;
+        
+        const dateRange = {};
+        if (from) dateRange.start = from;
+        if (to) dateRange.end = to;
+        
+        const actionData = await analyticsService.getActionAnalytics(venueId, dateRange);
+        
+        res.status(200).json({
+            success: true,
+            data: actionData
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching action analytics: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch action analytics',
             details: error.message
         });
     }
