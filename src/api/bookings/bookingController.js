@@ -11,6 +11,8 @@ class BookingController {
         this.updateBooking = this.updateBooking.bind(this);
         this.deleteBooking = this.deleteBooking.bind(this);
         this.getVenuesForAdmin = this.getVenuesForAdmin.bind(this);
+        this.createBookingFromFrontend = this.createBookingFromFrontend.bind(this);
+        this.updateBookingTracking = this.updateBookingTracking.bind(this);
         this.checkBookingConflict = this.checkBookingConflict.bind(this);
         this.convertToCalendarDate = this.convertToCalendarDate.bind(this);
         this.getEventColor = this.getEventColor.bind(this);
@@ -85,6 +87,37 @@ class BookingController {
             // Calculate total amount
             const totalAmount = (details.weddingDecorPrice || 0) + (details.foodMenuPrice || 0);
 
+            // Ensure eventDuration is properly mapped from slot data
+            let eventDuration = details.eventDuration;
+            if (!eventDuration && details.slotData) {
+                // Map slot names to duration values
+                if (details.slotData.toLowerCase().includes('morning')) {
+                    eventDuration = 'morning';
+                } else if (details.slotData.toLowerCase().includes('evening')) {
+                    eventDuration = 'evening';
+                } else if (details.slotData.toLowerCase().includes('night')) {
+                    eventDuration = 'night';
+                } else if (details.slotData.toLowerCase().includes('full')) {
+                    eventDuration = 'full';
+                }
+            }
+
+            // Ensure foodMenuPlate is properly formatted
+            let foodMenuPlate = details.foodMenuPlate;
+            if (foodMenuPlate && !['1x1', '2x2', '3x3'].includes(foodMenuPlate)) {
+                // Try to parse and format the plate value
+                if (typeof foodMenuPlate === 'string') {
+                    const plateMatch = foodMenuPlate.match(/(\d+)x(\d+)/);
+                    if (plateMatch) {
+                        foodMenuPlate = plateMatch[0]; // e.g., "2x2"
+                    } else {
+                        foodMenuPlate = null; // Invalid format
+                    }
+                } else {
+                    foodMenuPlate = null;
+                }
+            }
+
             const bookingData = {
                 venueId,
                 venueName: finalVenueName,
@@ -94,7 +127,14 @@ class BookingController {
                 userEmail,
                 details: {
                     ...details,
-                    totalAmount
+                    eventDuration,
+                    foodMenuPlate,
+                    totalAmount,
+                    // Analytics tracking fields with defaults
+                    sendEnquiryClicked: details.sendEnquiryClicked || false,
+                    clickedOnReserved: details.clickedOnReserved || false,
+                    clickedOnBookNow: details.clickedOnBookNow || false,
+                    madePayment: details.madePayment || false
                 },
                 createdBy: req.user?.id || userId
             };
@@ -457,68 +497,406 @@ class BookingController {
         }
     }
 
+    /**
+     * Create booking from frontend with proper tracking data
+     */
+    async createBookingFromFrontend(req, res) {
+        try {
+            console.log('📊 Frontend booking request received:', JSON.stringify(req.body, null, 2));
+            
+            const {
+                venueId,
+                venueName,
+                userId,
+                userName,
+                userContact,
+                userEmail,
+                occasionDate,
+                durationData,
+                guestCount,
+                categoryId,
+                selectedSlot,
+                selectedFoodType,
+                selectedFoodMenuTypes,
+                selectedDecor,
+                decorPrice,
+                foodPrice,
+                totalAmount,
+                paymentAmount,
+                paymentType,
+                orderType,
+                // These are the correctly populated fields from frontend
+                eventDuration,
+                foodMenuType,
+                foodMenuPlate,
+                // Analytics tracking fields
+                sendEnquiryClicked = false,
+                clickedOnReserved = false,
+                clickedOnBookNow = false,
+                madePayment = false
+            } = req.body;
+
+            console.log('📊 BACKEND: Received eventDuration from frontend:', eventDuration);
+            console.log('📊 BACKEND: Received foodMenuType from frontend:', foodMenuType);
+            console.log('📊 BACKEND: Received foodMenuPlate from frontend:', foodMenuPlate);
+
+            // Validate required fields
+            if (!venueId || !userId || !userName || !userContact || !userEmail) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: venueId, userId, userName, userContact, userEmail'
+                });
+            }
+
+            if (!durationData || !durationData.length || !durationData[0].occasionStartDate || !durationData[0].occasionEndDate) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required date information'
+                });
+            }
+
+            // Convert dates to DD/MM/YYYY format
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+
+            const startDate = formatDate(durationData[0].occasionStartDate);
+            const endDate = formatDate(durationData[0].occasionEndDate);
+
+            // Check for conflicting bookings
+            const conflictingBooking = await this.checkBookingConflict(venueId, startDate, endDate);
+            if (conflictingBooking) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'Venue dates are not available',
+                    conflictDetails: {
+                        startDate: conflictingBooking.details.startFilterDate,
+                        endDate: conflictingBooking.details.endFilterDate,
+                        customerName: conflictingBooking.userName,
+                        occasion: conflictingBooking.details.occasion
+                    }
+                });
+            }
+
+            // Get venue and occasion details
+            const venue = await Venue.findById(venueId);
+            const finalVenueName = venueName || (venue ? venue.name : 'Unknown Venue');
+
+            // Use the eventDuration directly from frontend (it's already correctly calculated)
+            // But handle backward compatibility for 'full-day' -> 'full'
+            let finalEventDuration = eventDuration || 'full';
+            if (finalEventDuration === 'full-day') {
+                finalEventDuration = 'full';
+            }
+            console.log('📊 Using eventDuration from frontend:', finalEventDuration);
+
+            // Use the foodMenuPlate directly from frontend (it's already correctly calculated)  
+            const finalFoodMenuPlate = foodMenuPlate || '2x2';
+            console.log('📊 Using foodMenuPlate from frontend:', finalFoodMenuPlate);
+
+            // Use the foodMenuType directly from frontend (it's already correctly formatted)
+            const finalFoodMenuType = foodMenuType || 'standard';
+            console.log('📊 Using foodMenuType from frontend:', finalFoodMenuType);
+
+            // Get occasion name (you might need to fetch this from a Category model)
+            let occasionName = 'Event';
+            try {
+                // Assuming you have a Category/Occasion model
+                if (categoryId) {
+                    const Category = require('../../../model/Category'); // Adjust path as needed
+                    const category = await Category.findById(categoryId);
+                    if (category) {
+                        occasionName = category.name;
+                    }
+                }
+            } catch (err) {
+                console.log('Could not fetch occasion name:', err.message);
+            }
+
+            // Determine booking status based on order type and payment
+            let bookingStatus = 'pending';
+            let paymentStatus = 'pending';
+            
+            if (orderType === 'send_enquires') {
+                bookingStatus = 'pending';
+                paymentStatus = 'not_applicable';
+            } else if (orderType === 'book_now') {
+                bookingStatus = madePayment ? 'confirmed' : 'pending';
+                paymentStatus = madePayment ? 'paid' : 'pending';
+            }
+
+            const bookingData = {
+                venueId,
+                venueName: finalVenueName,
+                userId,
+                userName,
+                userContact,
+                userEmail,
+                details: {
+                    isBookedByAdmin: false,
+                    startFilterDate: startDate,
+                    endFilterDate: endDate,
+                    eventDuration: finalEventDuration, // Use the corrected value from frontend
+                    occasion: occasionName,
+                    weddingDecorType: selectedDecor?.name || null,
+                    weddingDecorPrice: decorPrice || 0,
+                    foodMenuType: finalFoodMenuType, // Use the corrected value from frontend
+                    foodMenuPrice: foodPrice || 0,
+                    foodMenuPlate: finalFoodMenuPlate, // Use the corrected value from frontend
+                    guestCount: String(guestCount),
+                    bookingType: 'online',
+                    bookingNotes: `Order type: ${orderType}, Payment type: ${paymentType}`,
+                    totalAmount: totalAmount || 0,
+                    paymentStatus,
+                    bookingStatus,
+                    // Analytics tracking fields
+                    sendEnquiryClicked: orderType === 'send_enquires' ? true : sendEnquiryClicked,
+                    clickedOnReserved: clickedOnReserved,
+                    clickedOnBookNow: orderType === 'book_now' ? true : clickedOnBookNow,
+                    madePayment: madePayment
+                },
+                createdBy: userId
+            };
+
+            console.log('📊 Creating booking with tracking data:', JSON.stringify(bookingData, null, 2));
+            console.log('📊 BACKEND VERIFICATION: Final values being saved to database:');
+            console.log('   📊 eventDuration:', bookingData.details.eventDuration);
+            console.log('   📊 foodMenuType:', bookingData.details.foodMenuType);
+            console.log('   📊 foodMenuPlate:', bookingData.details.foodMenuPlate);
+
+            const booking = new Booking(bookingData);
+            await booking.save();
+            
+            console.log('📊 BOOKING SAVED SUCCESSFULLY with ID:', booking._id);
+            console.log('📊 SAVED BOOKING DETAILS:');
+            console.log('   📊 eventDuration:', booking.details.eventDuration);
+            console.log('   📊 foodMenuType:', booking.details.foodMenuType);
+            console.log('   📊 foodMenuPlate:', booking.details.foodMenuPlate);
+
+            console.log('✅ Booking created successfully with ID:', booking._id);
+
+            res.status(201).json({
+                success: true,
+                message: 'Booking created successfully',
+                data: {
+                    bookingId: booking._id,
+                    venueId: booking.venueId,
+                    venueName: booking.venueName,
+                    startDate: booking.details.startFilterDate,
+                    endDate: booking.details.endFilterDate,
+                    occasion: booking.details.occasion,
+                    guestCount: booking.details.guestCount,
+                    totalAmount: booking.details.totalAmount,
+                    bookingStatus: booking.details.bookingStatus,
+                    paymentStatus: booking.details.paymentStatus,
+                    tracking: {
+                        sendEnquiryClicked: booking.details.sendEnquiryClicked,
+                        clickedOnReserved: booking.details.clickedOnReserved,
+                        clickedOnBookNow: booking.details.clickedOnBookNow,
+                        madePayment: booking.details.madePayment
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ Error creating frontend booking:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to create booking',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Update booking tracking fields (for frontend analytics)
+     */
+    async updateBookingTracking(req, res) {
+        try {
+            const { bookingId } = req.params;
+            const {
+                sendEnquiryClicked,
+                clickedOnReserved,
+                clickedOnBookNow,
+                madePayment,
+                paymentStatus,
+                bookingStatus
+            } = req.body;
+
+            console.log('📊 Updating booking tracking:', {
+                bookingId,
+                trackingData: req.body
+            });
+
+            const booking = await Booking.findById(bookingId);
+            if (!booking) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Booking not found'
+                });
+            }
+
+            // Prepare update data
+            const updateData = {
+                updatedAt: new Date()
+            };
+
+            // Update tracking fields if provided
+            if (sendEnquiryClicked !== undefined) {
+                updateData['details.sendEnquiryClicked'] = sendEnquiryClicked;
+            }
+            if (clickedOnReserved !== undefined) {
+                updateData['details.clickedOnReserved'] = clickedOnReserved;
+            }
+            if (clickedOnBookNow !== undefined) {
+                updateData['details.clickedOnBookNow'] = clickedOnBookNow;
+            }
+            if (madePayment !== undefined) {
+                updateData['details.madePayment'] = madePayment;
+            }
+            if (paymentStatus !== undefined) {
+                updateData['details.paymentStatus'] = paymentStatus;
+            }
+            if (bookingStatus !== undefined) {
+                updateData['details.bookingStatus'] = bookingStatus;
+            }
+
+            const updatedBooking = await Booking.findByIdAndUpdate(
+                bookingId,
+                updateData,
+                { new: true }
+            );
+
+            console.log('✅ Booking tracking updated:', updatedBooking._id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Booking tracking updated successfully',
+                data: {
+                    bookingId: updatedBooking._id,
+                    tracking: {
+                        sendEnquiryClicked: updatedBooking.details.sendEnquiryClicked,
+                        clickedOnReserved: updatedBooking.details.clickedOnReserved,
+                        clickedOnBookNow: updatedBooking.details.clickedOnBookNow,
+                        madePayment: updatedBooking.details.madePayment
+                    },
+                    paymentStatus: updatedBooking.details.paymentStatus,
+                    bookingStatus: updatedBooking.details.bookingStatus
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ Error updating booking tracking:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update booking tracking',
+                error: error.message
+            });
+        }
+    }
+
     // Helper methods
     async checkBookingConflict(venueId, startDate, endDate, excludeBookingId = null) {
-        // Convert DD/MM/YYYY to Date objects for proper comparison
+        // Enhanced date parsing to handle multiple formats
         const parseDate = (dateStr) => {
-            const [day, month, year] = dateStr.split('/');
-            return new Date(year, month - 1, day); // month is 0-indexed
-        };
-        
-        const requestStart = parseDate(startDate);
-        const requestEnd = parseDate(endDate);
-        
-        console.log('🔍 Checking booking conflict for:', {
-            venueId,
-            requestedRange: `${startDate} to ${endDate}`,
-            requestStart: requestStart.toISOString(),
-            requestEnd: requestEnd.toISOString()
-        });
-        
-        // First get all active bookings for this venue
-        let query = {
-            venueId,
-            'details.bookingStatus': { $ne: 'cancelled' }
-        };
-
-        if (excludeBookingId) {
-            query._id = { $ne: excludeBookingId };
-        }
-
-        const existingBookings = await Booking.find(query);
-        
-        // Check each booking for actual overlap
-        for (const booking of existingBookings) {
-            const existingStart = parseDate(booking.details.startFilterDate);
-            const existingEnd = parseDate(booking.details.endFilterDate);
+            if (!dateStr) {
+                throw new Error('Date string is required');
+            }
             
-            console.log('📅 Comparing with existing booking:', {
-                bookingId: booking._id,
-                existingRange: `${booking.details.startFilterDate} to ${booking.details.endFilterDate}`,
-                existingStart: existingStart.toISOString(),
-                existingEnd: existingEnd.toISOString(),
-                customer: booking.userName,
-                occasion: booking.details.occasion
+            console.log('🗓️ Parsing date string:', dateStr);
+            
+            let parsedDate;
+            
+            // Handle DD/MM/YYYY format
+            if (dateStr.includes('/') && dateStr.split('/').length === 3) {
+                const [day, month, year] = dateStr.split('/');
+                parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+                console.log('📅 Parsed DD/MM/YYYY format:', { day, month, year, result: parsedDate });
+            }
+            // Handle YYYY-MM-DD format
+            else if (dateStr.includes('-') && dateStr.split('-').length === 3) {
+                const [year, month, day] = dateStr.split('T')[0].split('-'); // Remove time if present
+                parsedDate = new Date(year, month - 1, day);
+                console.log('📅 Parsed YYYY-MM-DD format:', { year, month, day, result: parsedDate });
+            }
+            // Handle ISO string or other formats
+            else {
+                parsedDate = new Date(dateStr);
+                console.log('📅 Parsed as ISO/general format:', parsedDate);
+            }
+            
+            // Validate the parsed date
+            if (isNaN(parsedDate.getTime())) {
+                throw new Error(`Invalid date format: ${dateStr}. Expected DD/MM/YYYY or YYYY-MM-DD`);
+            }
+            
+            return parsedDate;
+        };
+        
+        try {
+            const requestStart = parseDate(startDate);
+            const requestEnd = parseDate(endDate);
+            
+            console.log('🔍 Checking booking conflict for:', {
+                venueId,
+                requestedRange: `${startDate} to ${endDate}`,
+                requestStart: requestStart.toISOString(),
+                requestEnd: requestEnd.toISOString()
             });
             
-            // Check for ACTUAL overlap (not adjacent dates)
-            // Overlap occurs when: requestStart < existingEnd AND requestEnd > existingStart
-            // This properly excludes adjacent bookings
-            if (requestStart < existingEnd && requestEnd > existingStart) {
-                console.log('❌ CONFLICT DETECTED:', {
-                    conflictReason: 'Date ranges overlap',
-                    requestedDates: `${startDate} to ${endDate}`,
-                    conflictingDates: `${booking.details.startFilterDate} to ${booking.details.endFilterDate}`,
-                    conflictingBooking: booking.userName,
+            // First get all active bookings for this venue
+            let query = {
+                venueId,
+                'details.bookingStatus': { $ne: 'cancelled' }
+            };
+
+            if (excludeBookingId) {
+                query._id = { $ne: excludeBookingId };
+            }
+
+            const existingBookings = await Booking.find(query);
+            
+            // Check each booking for actual overlap
+            for (const booking of existingBookings) {
+                const existingStart = parseDate(booking.details.startFilterDate);
+                const existingEnd = parseDate(booking.details.endFilterDate);
+                
+                console.log('📅 Comparing with existing booking:', {
+                    bookingId: booking._id,
+                    existingRange: `${booking.details.startFilterDate} to ${booking.details.endFilterDate}`,
+                    existingStart: existingStart.toISOString(),
+                    existingEnd: existingEnd.toISOString(),
+                    customer: booking.userName,
                     occasion: booking.details.occasion
                 });
                 
-                return booking;
+                // Check for ACTUAL overlap (not adjacent dates)
+                // Overlap occurs when: requestStart < existingEnd AND requestEnd > existingStart
+                // This properly excludes adjacent bookings
+                if (requestStart < existingEnd && requestEnd > existingStart) {
+                    console.log('❌ CONFLICT DETECTED:', {
+                        conflictReason: 'Date ranges overlap',
+                        requestedDates: `${startDate} to ${endDate}`,
+                        conflictingDates: `${booking.details.startFilterDate} to ${booking.details.endFilterDate}`,
+                        conflictingBooking: booking.userName,
+                        occasion: booking.details.occasion
+                    });
+                    
+                    return booking;
+                }
             }
+            
+            console.log('✅ No conflicts found - dates are available');
+            return null;
+            
+        } catch (error) {
+            console.error('❌ Error in checkBookingConflict:', error);
+            throw new Error(`Date parsing error: ${error.message}`);
         }
-        
-        console.log('✅ No conflicts found - dates are available');
-        return null;
     }
 
     convertToCalendarDate(dateString) {
@@ -541,6 +919,140 @@ class BookingController {
                 return '#6c757d'; // Gray for cancelled
             default:
                 return '#007bff'; // Blue for default
+        }
+    }
+
+    /**
+     * Get bookings for a specific user (Frontend booking history)
+     */
+    async getUserBookings(req, res) {
+        try {
+            console.log('📊 Getting user bookings...');
+            
+            const { userId } = req.params;
+            const { 
+                filterByStatus = 'true',
+                filterByDisable = 'false',
+                filterByOrderType = 'book_now',
+                page = 1,
+                limit = 10
+            } = req.query;
+
+            console.log('Query parameters:', {
+                userId,
+                filterByStatus,
+                filterByDisable,
+                filterByOrderType,
+                page,
+                limit
+            });
+
+            // Build query
+            let query = { userId };
+
+            // Filter by booking status (only confirmed and pending, not cancelled)
+            if (filterByStatus === 'true') {
+                query['details.bookingStatus'] = { $in: ['confirmed', 'pending'] };
+            }
+
+            // Filter by order type if specified
+            if (filterByOrderType) {
+                if (filterByOrderType === 'book_now') {
+                    query['details.bookingType'] = { $in: ['online', 'booking'] };
+                } else if (filterByOrderType === 'send_enquires') {
+                    query['details.bookingType'] = 'enquiry';
+                }
+            }
+
+            console.log('Final query:', JSON.stringify(query, null, 2));
+
+            // Calculate pagination
+            const skip = (parseInt(page) - 1) * parseInt(limit);
+
+            // Get bookings with pagination
+            const bookings = await Booking.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean();
+
+            // Get total count
+            const totalCount = await Booking.countDocuments(query);
+
+            console.log(`Found ${bookings.length} bookings out of ${totalCount} total`);
+
+            // Transform bookings to match the venueorder format expected by frontend
+            const transformedBookings = bookings.map(booking => {
+                // Convert DD/MM/YYYY back to Date objects for frontend processing
+                const parseDate = (dateStr) => {
+                    if (!dateStr) return null;
+                    const [day, month, year] = dateStr.split('/');
+                    return new Date(year, month - 1, day);
+                };
+
+                const startDate = parseDate(booking.details.startFilterDate);
+                const endDate = parseDate(booking.details.endFilterDate);
+
+                return {
+                    id: booking._id,
+                    venueId: booking.venueId,
+                    venueName: booking.venueName,
+                    customerId: booking.userId,
+                    customerName: booking.userName,
+                    customerEmail: booking.userEmail,
+                    customerContact: booking.userContact,
+                    // Duration array to match venueorder format
+                    duration: [{
+                        occasionStartDate: startDate,
+                        occasionEndDate: endDate,
+                        slotId: booking.details.eventDuration === 'morning' ? 'morning_slot' : 
+                               booking.details.eventDuration === 'evening' ? 'evening_slot' :
+                               booking.details.eventDuration === 'night' ? 'night_slot' : 'full_day_slot'
+                    }],
+                    // Map food types to match venueorder format
+                    foodType: booking.details.foodMenuType ? [booking.details.foodMenuType.toLowerCase().replace(' ', '_')] : [],
+                    guestCount: parseInt(booking.details.guestCount) || 0,
+                    totalAmount: booking.details.totalAmount || 0,
+                    // Additional fields for compatibility
+                    orderType: booking.details.bookingType === 'online' ? 'book_now' : 'send_enquires',
+                    status: booking.details.bookingStatus,
+                    paymentStatus: booking.details.paymentStatus,
+                    occasion: booking.details.occasion,
+                    decorType: booking.details.weddingDecorType,
+                    decorPrice: booking.details.weddingDecorPrice || 0,
+                    foodPrice: booking.details.foodMenuPrice || 0,
+                    bookingNotes: booking.details.bookingNotes,
+                    createdAt: booking.createdAt,
+                    updatedAt: booking.updatedAt,
+                    // Analytics fields
+                    analytics: {
+                        sendEnquiryClicked: booking.details.sendEnquiryClicked || false,
+                        clickedOnReserved: booking.details.clickedOnReserved || false,
+                        clickedOnBookNow: booking.details.clickedOnBookNow || false,
+                        madePayment: booking.details.madePayment || false
+                    }
+                };
+            });
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    items: transformedBookings,
+                    totalCount: totalCount,
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(totalCount / parseInt(limit)),
+                    hasNextPage: skip + bookings.length < totalCount,
+                    hasPrevPage: parseInt(page) > 1
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ Error fetching user bookings:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch user bookings',
+                error: error.message
+            });
         }
     }
 }

@@ -74,6 +74,23 @@ const bookingSchema = new mongoose.Schema({
             type: String,
             required: true
         },
+        // Analytics tracking fields
+        sendEnquiryClicked: {
+            type: Boolean,
+            default: false
+        },
+        clickedOnReserved: {
+            type: Boolean,
+            default: false
+        },
+        clickedOnBookNow: {
+            type: Boolean,
+            default: false
+        },
+        madePayment: {
+            type: Boolean,
+            default: false
+        },
         // Additional booking details
         bookingType: {
             type: String,

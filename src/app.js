@@ -73,6 +73,7 @@ const offerRoutes = require('./api/offer/offer');
 const vendorRoutes = require('./api/vendor/vendor');
 const vendorOrderRoutes = require('./api/vendororder/vendororder');
 const analyticsRoutes = require('./api/analytics/geography/analytics');
+const bookingRoutes = require('./api/bookings/bookingRoutes');
 
 // Initialize the application
 const app = express();
@@ -190,6 +191,7 @@ app.use(`${root}/wishlist`, wishlistRoutes);
 app.use(`${root}/offer`, offerRoutes);
 app.use(`${root}/vendor`, vendorRoutes);
 app.use(`${root}/analytics/geography`, analyticsRoutes);
+app.use(`${root}/bookings`, bookingRoutes);
 
 app.use(logErrors);
 app.use(clientErrorHandler);
