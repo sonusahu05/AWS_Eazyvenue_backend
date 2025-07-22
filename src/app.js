@@ -100,7 +100,7 @@ function clientErrorHandler(err, req, res, next) {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// // CORS configuration comment
+// CORS configuration comment
 // app.use(cors({
 //   origin: [
 //     'http://localhost:4200',
@@ -191,6 +191,7 @@ app.use(`${root}/wishlist`, wishlistRoutes);
 app.use(`${root}/offer`, offerRoutes);
 app.use(`${root}/vendor`, vendorRoutes);
 app.use(`${root}/analytics/geography`, analyticsRoutes);
+app.use(`${root}/analytics/venue`, require('./api/analytics/venueAnalytics'));
 app.use(`${root}/bookings`, bookingRoutes);
 
 app.use(logErrors);

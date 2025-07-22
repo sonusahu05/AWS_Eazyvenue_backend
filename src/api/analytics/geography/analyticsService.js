@@ -896,6 +896,76 @@ async getActionAnalytics(venueId, dateRange = {}) {
             throw new Error(`Failed to get venue timeline analytics: ${error.message}`);
         }
     }
+
+    // NEW: Get venue clicks for a specific venue
+    getVenueClicks(venueId, options = {}) {
+        try {
+            const { from, to, limit = 100, skip = 0 } = options;
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return this.venueClickRepository.getVenueClicks(venueId, {
+                dateRange,
+                limit,
+                skip
+            });
+        } catch (error) {
+            throw new Error(`Failed to get venue clicks: ${error.message}`);
+        }
+    }
+
+    // NEW: Get all venue clicks (for all venues analytics)
+    getAllVenueClicks(options = {}) {
+        try {
+            const { from, to, limit = 100, skip = 0 } = options;
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return this.venueClickRepository.getAllVenueClicks({
+                dateRange,
+                limit,
+                skip
+            });
+        } catch (error) {
+            throw new Error(`Failed to get all venue clicks: ${error.message}`);
+        }
+    }
+
+    // NEW: Get aggregated venue clicks for a specific venue
+    getVenueClicksAggregated(venueId, options = {}) {
+        try {
+            const { from, to, groupBy = 'date' } = options;
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return this.venueClickRepository.getVenueClicksAggregated(venueId, {
+                dateRange,
+                groupBy
+            });
+        } catch (error) {
+            throw new Error(`Failed to get aggregated venue clicks: ${error.message}`);
+        }
+    }
+
+    // NEW: Get aggregated all venue clicks (for all venues aggregated analytics)
+    getAllVenueClicksAggregated(options = {}) {
+        try {
+            const { from, to, groupBy = 'date' } = options;
+            const dateRange = {};
+            if (from) dateRange.start = from;
+            if (to) dateRange.end = to;
+
+            return this.venueClickRepository.getAllVenueClicksAggregated({
+                dateRange,
+                groupBy
+            });
+        } catch (error) {
+            throw new Error(`Failed to get aggregated all venue clicks: ${error.message}`);
+        }
+    }
 }
 
 module.exports = AnalyticsService;

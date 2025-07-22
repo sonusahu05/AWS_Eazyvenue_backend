@@ -1069,12 +1069,196 @@ class VenueClickRepository extends BaseRepository {
             throw new Error(`Failed to get subarea stats: ${error.message}`);
         }
     }
+
     async aggregate(pipeline) {
         try {
             const db = await this.dbClient;
             return await db.collection(this.collection).aggregate(pipeline).toArray();
         } catch (error) {
             throw new Error(`Aggregation failed: ${error.message}`);
+        }
+    }
+
+    // NEW: Get venue clicks for a specific venue with pagination
+    async getVenueClicks(venueId, options = {}) {
+        try {
+            const { dateRange = {}, limit = 100, skip = 0 } = options;
+            
+            const query = { venueId };
+            
+            if (dateRange.start && dateRange.end) {
+                query.timestamp = {
+                    $gte: new Date(dateRange.start),
+                    $lte: new Date(dateRange.end)
+                };
+            }
+
+            const db = await this.dbClient;
+            return await db.collection(this.collection)
+                .find(query)
+                .sort({ timestamp: -1 })
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+        } catch (error) {
+            throw new Error(`Failed to get venue clicks for ${venueId}: ${error.message}`);
+        }
+    }
+
+    // NEW: Get all venue clicks (for all venues analytics) with pagination
+    async getAllVenueClicks(options = {}) {
+        try {
+            const { dateRange = {}, limit = 100, skip = 0 } = options;
+            
+            const query = {};
+            
+            if (dateRange.start && dateRange.end) {
+                query.timestamp = {
+                    $gte: new Date(dateRange.start),
+                    $lte: new Date(dateRange.end)
+                };
+            }
+
+            const db = await this.dbClient;
+            return await db.collection(this.collection)
+                .find(query)
+                .sort({ timestamp: -1 })
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+        } catch (error) {
+            throw new Error(`Failed to get all venue clicks: ${error.message}`);
+        }
+    }
+
+    // NEW: Get aggregated venue clicks for a specific venue
+    async getVenueClicksAggregated(venueId, options = {}) {
+        try {
+            const { dateRange = {}, groupBy = 'date' } = options;
+            
+            const matchStage = { venueId };
+            
+            if (dateRange.start && dateRange.end) {
+                matchStage.timestamp = {
+                    $gte: new Date(dateRange.start),
+                    $lte: new Date(dateRange.end)
+                };
+            }
+
+            let pipeline = [
+                { $match: matchStage }
+            ];
+
+            // Group by date, venue, or other criteria
+            if (groupBy === 'date') {
+                pipeline.push({
+                    $group: {
+                        _id: {
+                            $dateToString: { format: "%Y-%m-%d", date: "$timestamp" }
+                        },
+                        count: { $sum: 1 },
+                        totalViews: { $sum: 1 },
+                        enquiries: {
+                            $sum: {
+                                $cond: [
+                                    { $or: [
+                                        { $eq: ["$engagement.submittedEnquiry", true] },
+                                        { $eq: ["$engagement.actions.sendEnquiryClicked", true] }
+                                    ]},
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        payments: {
+                            $sum: {
+                                $cond: [
+                                    { $eq: ["$engagement.actions.madePayment", true] },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        avgQualityScore: { $avg: "$qualityScore" },
+                        totalTimeSpent: { $sum: "$engagement.timeSpentSeconds" }
+                    }
+                });
+                pipeline.push({ $sort: { _id: 1 } });
+            }
+
+            const db = await this.dbClient;
+            return await db.collection(this.collection)
+                .aggregate(pipeline)
+                .toArray();
+        } catch (error) {
+            throw new Error(`Failed to get aggregated venue clicks for ${venueId}: ${error.message}`);
+        }
+    }
+
+    // NEW: Get aggregated all venue clicks (for all venues aggregated analytics)
+    async getAllVenueClicksAggregated(options = {}) {
+        try {
+            const { dateRange = {}, groupBy = 'date' } = options;
+            
+            const matchStage = {};
+            
+            if (dateRange.start && dateRange.end) {
+                matchStage.timestamp = {
+                    $gte: new Date(dateRange.start),
+                    $lte: new Date(dateRange.end)
+                };
+            }
+
+            let pipeline = [];
+            
+            if (Object.keys(matchStage).length > 0) {
+                pipeline.push({ $match: matchStage });
+            }
+
+            // Group by date, venue, or other criteria
+            if (groupBy === 'date') {
+                pipeline.push({
+                    $group: {
+                        _id: {
+                            $dateToString: { format: "%Y-%m-%d", date: "$timestamp" }
+                        },
+                        count: { $sum: 1 },
+                        totalViews: { $sum: 1 },
+                        enquiries: {
+                            $sum: {
+                                $cond: [
+                                    { $or: [
+                                        { $eq: ["$engagement.submittedEnquiry", true] },
+                                        { $eq: ["$engagement.actions.sendEnquiryClicked", true] }
+                                    ]},
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        payments: {
+                            $sum: {
+                                $cond: [
+                                    { $eq: ["$engagement.actions.madePayment", true] },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        avgQualityScore: { $avg: "$qualityScore" },
+                        totalTimeSpent: { $sum: "$engagement.timeSpentSeconds" },
+                        uniqueVenues: { $addToSet: "$venueId" }
+                    }
+                });
+                pipeline.push({ $sort: { _id: 1 } });
+            }
+
+            const db = await this.dbClient;
+            return await db.collection(this.collection)
+                .aggregate(pipeline)
+                .toArray();
+        } catch (error) {
+            throw new Error(`Failed to get aggregated all venue clicks: ${error.message}`);
         }
     }
 }

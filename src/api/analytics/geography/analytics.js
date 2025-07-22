@@ -284,6 +284,95 @@ router.get('/venue-clicks/:venueId', auth,  async (req, res) => {
     }
 });
 
+// NEW: Get all venue clicks - Admin endpoint (for all venues analytics)
+router.get('/venue-clicks', auth, async (req, res) => {
+    try {
+        const { from, to, limit = 100, skip = 0 } = req.query;
+        
+        console.log('📊 Getting all venue clicks:', { from, to, limit, skip });
+        
+        const clicks = await analyticsService.getAllVenueClicks({
+            from,
+            to,
+            limit: parseInt(limit),
+            skip: parseInt(skip)
+        });
+        
+        console.log('📊 All venue clicks response:', clicks?.length || 0, 'records');
+        
+        res.status(200).json({
+            success: true,
+            data: clicks
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching all venue clicks: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch all venue clicks',
+            details: error.message
+        });
+    }
+});
+
+// NEW: Get aggregated venue clicks - Admin endpoint (for aggregated analytics)
+router.get('/venue-clicks-aggregated/:venueId', auth, async (req, res) => {
+    try {
+        const { venueId } = req.params;
+        const { from, to, groupBy = 'date' } = req.query;
+        
+        console.log('📊 Getting aggregated venue clicks for venue:', venueId, { from, to, groupBy });
+        
+        const aggregatedData = await analyticsService.getVenueClicksAggregated(venueId, {
+            from,
+            to,
+            groupBy
+        });
+        
+        console.log('📊 Aggregated venue clicks response:', aggregatedData?.length || 0, 'groups');
+        
+        res.status(200).json({
+            success: true,
+            data: aggregatedData
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching aggregated venue clicks: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch aggregated venue clicks',
+            details: error.message
+        });
+    }
+});
+
+// NEW: Get aggregated all venue clicks - Admin endpoint (for all venues aggregated analytics)
+router.get('/venue-clicks-aggregated', auth, async (req, res) => {
+    try {
+        const { from, to, groupBy = 'date' } = req.query;
+        
+        console.log('📊 Getting aggregated all venue clicks:', { from, to, groupBy });
+        
+        const aggregatedData = await analyticsService.getAllVenueClicksAggregated({
+            from,
+            to,
+            groupBy
+        });
+        
+        console.log('📊 Aggregated all venue clicks response:', aggregatedData?.length || 0, 'groups');
+        
+        res.status(200).json({
+            success: true,
+            data: aggregatedData
+        });
+    } catch (error) {
+        logger.errorLog.error(`Error fetching aggregated all venue clicks: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch aggregated all venue clicks',
+            details: error.message
+        });
+    }
+});
+
 // Get geographic distribution - Admin endpoint
 router.get('/geographic-distribution/:venueId', auth,  async (req, res) => {
     try {
