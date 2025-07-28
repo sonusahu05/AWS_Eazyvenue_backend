@@ -57,6 +57,8 @@ module.exports = {
     showPortfolioPicFolderPath: "uploads/portfolioPic/",
     venueCSVFolder: "src/public/uploads/venueCsv/",
     showPortfolioPicFolderPath: "uploads/venueCsv/",
+    menuPDFFolder: "src/public/uploads/menus/",
+    showMenuPDFPath: "uploads/menus/",
   },
   logger: {
     console: {

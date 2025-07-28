@@ -120,6 +120,37 @@ class VenueService {
             return frontEnd.picPath + "/" + picture.defaultPicFolderPath + 'profile.jpg';
         }
     }
+
+    getMenuPDFUrl(name) {
+        if (typeof name !== 'undefined' && name !== null) {
+            var pdfPath = picture.menuPDFFolder + name;
+            if (fs.existsSync(pdfPath)) {
+                return frontEnd.picPath + "/" + picture.showMenuPDFPath + name;
+            } else {
+                return '';
+            }
+        } else {
+            return '';
+        }
+    }
+
+    uploadMenuPDF(id, file) {
+        const fileName = id + '-' + Date.now() + '.pdf';
+        const filePath = picture.menuPDFFolder + fileName;
+        
+        return new Promise((resolve, reject) => {
+            fs.writeFile(filePath, file.buffer, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                this.repository.edit(id, { menuPDF: fileName })
+                    .then(() => resolve(fileName))
+                    .catch(reject);
+            });
+        });
+    }
     mapVenueToDto(venue, showAll) {
         var createdBy;
         if (venue.createduserdata) {
