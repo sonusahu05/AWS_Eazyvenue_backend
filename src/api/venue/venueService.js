@@ -121,71 +121,72 @@ class VenueService {
         }
     }
 
-    getMenuPDFUrl(name) {
-        if (typeof name !== 'undefined' && name !== null) {
-            var pdfPath = picture.menuPDFFolder + name;
-            if (fs.existsSync(pdfPath)) {
-                return frontEnd.picPath + "/" + picture.showMenuPDFPath + name;
-            } else {
-                return '';
-            }
-        } else {
-            return '';
-        }
-    }
-
-    uploadMenuPDF(id, file) {
-        const fileName = id + '-' + Date.now() + '.pdf';
-        const filePath = picture.menuPDFFolder + fileName;
-        
-        return new Promise((resolve, reject) => {
-            fs.writeFile(filePath, file.buffer, (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                
-                this.repository.edit(id, { menuPDF: fileName })
-                    .then(() => resolve(fileName))
-                    .catch(reject);
-            });
-        });
-    }
     mapVenueToDto(venue, showAll) {
+        // Handle amenities - support both old format (string) and new format (array)
+        let processedAmenities = '';
+        try {
+            if (venue.amenities) {
+                if (Array.isArray(venue.amenities)) {
+                    // New format: array of objects -> process and return as array
+                    processedAmenities = venue.amenities.map(amenity => {
+                        if (typeof amenity === 'object' && amenity.name && amenity.value) {
+                            return {
+                                name: amenity.name,
+                                value: amenity.value,
+                            };
+                        }
+                        return amenity;
+                    });
+                } else if (typeof venue.amenities === 'string') {
+                    // Old format: string -> keep as is
+                    processedAmenities = venue.amenities;
+                } else {
+                    // Fallback
+                    processedAmenities = '';
+                }
+            } else {
+                processedAmenities = '';
+            }
+        } catch (amenityError) {
+            processedAmenities = '';
+        }
+        
         var createdBy;
-        if (venue.createduserdata) {
-            createdBy = venue.createduserdata[0]?.firstName + ' ' + venue.createduserdata[0]?.lastName;
-        }
         var updatedBy;
-        if (venue.updateduserdata.length > 0) {
-            updatedBy = venue.updateduserdata[0]?.firstName + ' ' + venue.updateduserdata[0]?.lastName;
-        }
-
-
-
         var venueownerId;
         var venueownerFname;
         var venueownerLname;
         var venueownerMobile;
         var venueownerEmail;
-
         var venueownerGender;
         var venueownerProfile;
-        if (venue.venueownerdata.length > 0) {
-            venueownerId = venue.venueownerdata[0]._id;
-            venueownerFname = venue.venueownerdata[0].firstName;
-            venueownerLname = venue.venueownerdata[0].lastName;
-            venueownerMobile = venue.venueownerdata[0].mobileNumber;
-            venueownerEmail = venue.venueownerdata[0].email;
-            venueownerGender = venue.venueownerdata[0].gender;
-            venueownerProfile = venue.venueownerdata[0].profilepic;
+        
+        try {
+            if (venue.createduserdata && venue.createduserdata[0]) {
+                createdBy = venue.createduserdata[0].firstName + ' ' + venue.createduserdata[0].lastName;
+            }
+            if (venue.updateduserdata && venue.updateduserdata.length > 0) {
+                updatedBy = venue.updateduserdata[0].firstName + ' ' + venue.updateduserdata[0].lastName;
+            }
+            
+            if (venue.venueownerdata.length > 0) {
+                venueownerId = venue.venueownerdata[0]._id;
+                venueownerFname = venue.venueownerdata[0].firstName;
+                venueownerLname = venue.venueownerdata[0].lastName;
+                venueownerMobile = venue.venueownerdata[0].mobileNumber;
+                venueownerEmail = venue.venueownerdata[0].email;
+                venueownerGender = venue.venueownerdata[0].gender;
+                venueownerProfile = venue.venueownerdata[0].profilepic;
+            }
+        } catch (error) {
+            console.error('Error processing venue owner data:', error);
         }
 
 
         let slot = venue.slotfilterdata.map((slot) => {
             const { _id, slotId, slotdate, slotenddate } = slot;
             return { _id, slotId, slotdate, slotenddate }
-        })
+        });
 
 
         if (showAll) {
@@ -218,7 +219,7 @@ class VenueService {
                 parkingdetails: venue.parkingdetails,
                 kitchendetails: venue.kitchendetails,
                 decorationdetails: venue.decorationdetails,
-                amenities: venue.amenities,
+                amenities: processedAmenities,
                 roundTable: venue.roundTable,
                 venueownerId: venueownerId,
                 venueownerFname: venueownerFname,
@@ -311,7 +312,7 @@ class VenueService {
                 parkingdetails: venue.parkingdetails,
                 kitchendetails: venue.kitchendetails,
                 decorationdetails: venue.decorationdetails,
-                amenities: venue.amenities,
+                amenities: processedAmenities,
                 roundTable: venue.roundTable,
                 venueownerId: venueownerId,
                 venueownerFname: venueownerFname,

@@ -45,12 +45,10 @@ const venueSchema = new mongoose.Schema({
     roomData: [],
     foodMenuType: {},
     foodType: [],
-    amenities: [],
-    menuPDF: {
-        filename: String,
-        path: String,
-        uploadDate: { type: Date, default: Date.now }
-    },
+    amenities: [{
+        name: String,
+        value: String
+    }],
     shortdescription: String,
     reviews: [{
         reviewdescription: String,
@@ -70,16 +68,6 @@ const venueSchema = new mongoose.Schema({
     acdetails: String,
     kitchendetails: String,
     decorationdetails: String,
-    amenitiesArray: [{
-    name: String,
-    icon: String,
-    enabled: { type: Boolean, default: false }
-    }],
-    // menuImages: [{
-    // menu_image_src: String,
-    // alt: String,
-    // default: Boolean
-    // }],
     parkingdetails: String,
     capacityDescription: String,
     address: String,

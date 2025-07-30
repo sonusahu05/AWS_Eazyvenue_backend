@@ -22,88 +22,11 @@ var moment = require('moment');
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for menu PDF uploads
-const menuPDFStorage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        const uploadPath = path.join(__dirname, '../../../uploads/menus');
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
-    },
-    filename: function(req, file, cb) {
-        cb(null, `menu-${Date.now()}${path.extname(file.originalname)}`);
-    }
-});
-
-const uploadMenuPDF = multer({
-    storage: menuPDFStorage,
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error('Only PDF files are allowed!'));
-        }
-    },
-    limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
-    }
-}).single('menuPDF');
 const PostavailabilityService = require('../postavailability/postavailabilityService');
 const postavailabilityService = new PostavailabilityService();
 const mongoose = require('mongoose');
 const Category = require("../../../model/Category");
 
-
-router.post('/uploadMenuPDF/:venueId', auth, (req, res) => {
-    uploadMenuPDF(req, res, async (err) => {
-        if (err) {
-            return res.status(400).json({
-                success: false,
-                message: err.message || 'Error uploading menu PDF'
-            });
-        }
-
-        try {
-            if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No file uploaded'
-                });
-            }
-
-            const venue = await Venue.findById(req.params.venueId);
-            if (!venue) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Venue not found'
-                });
-            }
-
-            // Update venue with menu PDF info
-            venue.menuPDF = {
-                filename: req.file.filename,
-                path: `/uploads/menus/${req.file.filename}`,
-                uploadDate: new Date()
-            };
-
-            await venue.save();
-
-            res.json({
-                success: true,
-                message: 'Menu PDF uploaded successfully',
-                menuPDF: venue.menuPDF
-            });
-        } catch (error) {
-            console.error('Error in menu PDF upload:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving menu PDF information'
-            });
-        }
-    });
-});
 
 function uploadVenueImage(venueImage) {
     var decorImagefilename = [];
@@ -497,7 +420,17 @@ router.get('/competition/:venueId', async (req, res) => {
                     ...img,
                     venue_image_src: frontEnd.picPath + "/" + picture.showVenuePicFolderPath + img.venue_image_src
                 })) : [],
-                amenities: venue.amenities ? venue.amenities.split(',').map(a => a.trim()).filter(a => a) : [],
+                amenities: (() => {
+                    if (!venue.amenities) return [];
+                    if (Array.isArray(venue.amenities)) {
+                        // New format: array of objects
+                        return venue.amenities.map(a => a.name || a.value || a);
+                    } else if (typeof venue.amenities === 'string') {
+                        // Old format: string
+                        return venue.amenities.split(',').map(a => a.trim()).filter(a => a);
+                    }
+                    return [];
+                })(),
                 rating: venue.eazyVenueRating || venue.googleRating || 0,
                 propertyType: venue.propertyType?.name || ''
             };
@@ -1033,9 +966,19 @@ router.get('/venuesByFilter',async (req,res) =>{
                     const subarea = d.subarea.name;
                     delete item.subarea;
                     item['subarea'] = subarea;
-                    const amenities = item.amenities.split(',');
+                    
+                    // Handle amenities for both old format (string) and new format (array)
+                    let amenities = [];
+                    if (item.amenities) {
+                        if (Array.isArray(item.amenities)) {
+                            // New format: array of objects
+                            amenities = item.amenities.map(a => a.name || a.value || a);
+                        } else if (typeof item.amenities === 'string') {
+                            // Old format: string
+                            amenities = item.amenities.split(',');
+                        }
+                    }
                     delete item.amenities;
-
 
                     item.venueImage = item.venueImage.map(obj => ({
                         ...obj,
