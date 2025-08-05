@@ -1105,6 +1105,11 @@ router.get('/amanetiesList',async(req,res)=>{
     try{
        const pipeLine = [
             {
+              $match: {
+                amenities: { $exists: true, $ne: null, $type: "string" }
+              }
+            },
+            {
               $unwind: {
                 path: "$amenities",
                 preserveNullAndEmptyArrays: true
@@ -1134,8 +1139,16 @@ router.get('/amanetiesList',async(req,res)=>{
           Venue.aggregate(pipeLine).exec((err,result) =>{
             if(err){
                 res.status(500).json({message:err.message})
+                return;
             }
             console.log(result);
+            
+            // Check if result exists and has data
+            if (!result || result.length === 0 || !result[0] || !result[0].distinctAmenities) {
+                res.status(200).json({data: []});
+                return;
+            }
+            
             const amanetiesList = result[0].distinctAmenities.map(o =>{
                 const a = {
                     key: o,
