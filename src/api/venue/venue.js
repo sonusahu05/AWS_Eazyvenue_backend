@@ -787,7 +787,7 @@ router.get('/venuesByFilter',async (req,res) =>{
         const limit = parseInt(req.query.pageSize, 10) || 10;
         const skip = (page - 1) * limit;
 
-        let query = req.query.categoryId === undefined && req.query.categoryId != '' ? {} : {'category.id':req.query.categoryId}
+        let query = req.query.categoryId === undefined || req.query.categoryId === '' ? {} : {'category.id':req.query.categoryId}
         let postQuery = {}
         if(Array.isArray(req.query.citycode) && req.query.citycode.length > 0){
             query['citycode'] = {$in: req.query.citycode};
@@ -808,7 +808,10 @@ router.get('/venuesByFilter',async (req,res) =>{
         } else if (typeof req.query.subareaid === 'string') {
             query['subareaid'] = mongoose.Types.ObjectId(req.query.subareaid);
         }
-        query['capacity'] = { $gt: parseInt(req.query.guestCount, 10) || 0 };
+        
+        if (req.query.guestCount !== undefined && req.query.guestCount !== '') {
+            query['capacity'] = { $gte: parseInt(req.query.guestCount, 10) };
+        }
 
         if (req.query.seatingCapacity !== undefined && req.query.seatingCapacity !== '') {
           query['theaterSitting'] = { $lt: parseInt(req.query.seatingCapacity, 10) || 0 };
