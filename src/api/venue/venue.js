@@ -787,7 +787,7 @@ router.get('/venuesByFilter',async (req,res) =>{
         const limit = parseInt(req.query.pageSize, 10) || 10;
         const skip = (page - 1) * limit;
 
-        let query = req.query.categoryId === undefined || req.query.categoryId === '' ? {} : {'category.id':req.query.categoryId}
+        let query = req.query.categoryId === undefined && req.query.categoryId != '' ? {} : {'category.id':req.query.categoryId}
         let postQuery = {}
         if(Array.isArray(req.query.citycode) && req.query.citycode.length > 0){
             query['citycode'] = {$in: req.query.citycode};
