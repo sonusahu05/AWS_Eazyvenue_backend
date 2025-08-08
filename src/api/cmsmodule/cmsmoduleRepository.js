@@ -1,0 +1,137 @@
+const { ObjectId } = require('mongodb');
+const BaseRepository = require('../../db/baseRepository');
+var moment = require('moment');
+class CmsmoduleRepository extends BaseRepository {
+  constructor() {
+    super('cmsmodules');
+  }
+
+  findByCmsSlug(slug) {
+    return this.dbClient
+      .then(db => db
+        .collection(this.collection)
+        .findOne({ slug : slug}));
+  }
+
+  findById(id){
+    return this.dbClient
+            .then(db => {
+                const data = db.collection(this.collection)
+                .aggregate([
+                  {
+                    $match: {_id: ObjectId(id) }
+                  },                  
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'created_by',
+                      foreignField: '_id',
+                      as: 'createduserdata',
+                    },
+                  },
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'updated_by',
+                      foreignField: '_id',
+                      as: 'updateduserdata',
+                    },
+                  }
+                ]);
+            return data.toArray();
+      });
+  }
+
+  listFiltered(filter1) {    
+    const filter = this._getListFilter(filter1);
+    return this.dbClient
+            .then(db => {
+                const data = db.collection(this.collection)
+                .aggregate([
+                  {
+                    $match: {$or : [ filter.query]}
+                  },                  
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'created_by',
+                      foreignField: '_id',
+                      as: 'createduserdata',
+                    },
+                  },
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'updated_by',
+                      foreignField: '_id',
+                      as: 'updateduserdata',
+                    },
+                  }                  
+                ])
+                .sort({_id: -1});
+
+            if (filter.pageSize && filter.pageNumber) {
+                data
+                    .skip(parseInt(filter.pageSize, 10) * (parseInt(filter.pageNumber, 10) - 1))
+                    .limit(parseInt(filter.pageSize, 10));
+            }
+            if (filter.sortBy && filter.orderBy) {
+                const sortSettings = { [filter.sortBy]: filter.orderBy === 'ASC' ? 1 : -1 };
+                data.collation({ locale: 'en' }).sort(sortSettings);
+            }
+            return data.toArray();
+      });
+  }
+
+  getCountFiltered(filter1) {
+    const filter = this._getListFilter(filter1);    
+    return this.dbClient
+            .then(db => {
+                const data = db.collection(this.collection)
+                .aggregate([
+                  {
+                    $match: {$or : [ filter.query]}
+                  },
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'created_by',
+                      foreignField: '_id',
+                      as: 'createduserdata',
+                    },
+                  },
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'updated_by',
+                      foreignField: '_id',
+                      as: 'updateduserdata',
+                    },
+                  }
+                ])
+                .sort({_id: -1});
+          return data.toArray();
+      });
+  }
+
+  _getListFilter(filter) {
+    const copyFilter = { ...filter };
+    copyFilter.query = {};
+    
+    if (copyFilter.filterByName) {
+      copyFilter.query.name = { $regex: copyFilter.filterByName, $options: 'i' };
+    }
+    if (copyFilter.filterByStatus) {
+      copyFilter.query.status = { $eq: JSON.parse(copyFilter.filterByStatus) };
+    }
+    if (copyFilter.filterBySlug) {
+      copyFilter.query.slug = { $regex: copyFilter.filterBySlug, $options: 'i' };
+    }
+    if (copyFilter.filterByDisable) {
+      copyFilter.query.disable = { $eq: JSON.parse(copyFilter.filterByDisable) };
+    }
+    return copyFilter;
+  }
+}
+
+module.exports = CmsmoduleRepository;
