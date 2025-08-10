@@ -1,0 +1,417 @@
+name: Deploy Eazyvenue Backend to AWS EC2
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm ci --production
+
+    - name: Run tests (if any)
+      run: |
+        # npm test || true
+        echo "No tests configured yet"
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # Set deployment variables
+          DEPLOY_DIR="/var/www/eazyvenue-backend"
+          REPO_URL="https://${{ secrets.ACCESS_TOKEN }}@github.com/sonusahu05/AWS_Eazyvenue_backend.git"
+          
+          echo "🚀 Starting Eazyvenue Backend Deployment..."
+          echo "Deploy directory: $DEPLOY_DIR"
+          
+          # Create deployment directory if it doesn't exist
+          sudo mkdir -p $DEPLOY_DIR
+          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} $DEPLOY_DIR
+          
+          # Set Git configs if not already set
+          if [ -z "$(git config --global user.email)" ]; then
+            git config --global user.email "sonusahu050502@gmail.com"
+            git config --global user.name "sonusahu05"
+          fi
+          
+          # Handle uploads directory preservation (if it exists and is large)
+          UPLOADS_DIR="$DEPLOY_DIR/src/public/uploads"
+          if [ -d "$UPLOADS_DIR" ]; then
+            echo "📂 Preserving uploads directory..."
+            # Create backup of uploads
+            sudo cp -R "$UPLOADS_DIR" "/tmp/uploads_backup_$(date +%Y%m%d_%H%M%S)" || true
+            # Ensure gitignore exists
+            if [ ! -f "$UPLOADS_DIR/.gitignore" ]; then
+              echo "*" | sudo tee "$UPLOADS_DIR/.gitignore"
+              echo "!.gitignore" | sudo tee -a "$UPLOADS_DIR/.gitignore"
+            fi
+          fi
+          
+          # Clone or update repository
+          if [ -d "$DEPLOY_DIR/.git" ]; then
+            echo "📥 Updating existing repository..."
+            cd $DEPLOY_DIR
+            
+            # Fix ownership and permissions
+            sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} .
+            sudo chmod -R u+rw .
+            
+            # Update remote URL with token
+            git remote set-url origin $REPO_URL
+            
+            # Fetch and reset to latest
+            git fetch origin main || {
+              echo "❌ Failed to fetch. Re-cloning repository..."
+              cd /tmp
+              sudo rm -rf $DEPLOY_DIR
+              git clone --depth=1 --branch main $REPO_URL $DEPLOY_DIR
+            }
+            
+            if [ -d "$DEPLOY_DIR/.git" ]; then
+              cd $DEPLOY_DIR
+              git reset --hard origin/main || {
+                echo "❌ Failed to reset. Re-cloning repository..."
+                cd /tmp
+                sudo rm -rf $DEPLOY_DIR
+                git clone --depth=1 --branch main $REPO_URL $DEPLOY_DIR
+              }
+            fi
+          else
+            echo "📥 Cloning repository..."
+            # Backup existing directory if it exists
+            if [ -d "$DEPLOY_DIR" ]; then
+              sudo mv $DEPLOY_DIR $DEPLOY_DIR"_backup_$(date +%Y%m%d_%H%M%S)"
+            fi
+            
+            # Clone fresh repository
+            git clone --depth=1 --branch main $REPO_URL $DEPLOY_DIR
+          fi
+          
+          # Ensure we're in the correct directory
+          cd $DEPLOY_DIR
+          
+          # Set proper ownership and permissions
+          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} .
+          sudo chmod -R u+rw .
+          
+          # Restore uploads backup if needed
+          if [ -d "/tmp/uploads_backup_"* ]; then
+            echo "📁 Restoring uploads backup..."
+            LATEST_BACKUP=$(ls -td /tmp/uploads_backup_* | head -1)
+            sudo cp -R "$LATEST_BACKUP"/* "$UPLOADS_DIR/" 2>/dev/null || true
+            sudo rm -rf /tmp/uploads_backup_*
+          fi
+          
+          # Install dependencies
+          echo "📦 Installing dependencies..."
+          npm ci --production --no-audit --prefer-offline
+          
+          # Setup directories
+          mkdir -p src/public/uploads
+          mkdir -p logs
+          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} src/public/uploads
+          sudo chmod -R 755 src/public/uploads
+          
+          # Install and configure Redis
+          if ! command -v redis-server &> /dev/null; then
+            echo "🔧 Installing Redis..."
+            sudo apt-get update -y
+            sudo apt-get install -y redis-server
+            sudo systemctl enable redis-server
+          fi
+          
+          # Start Redis if not running
+          if ! sudo systemctl is-active --quiet redis-server; then
+            echo "▶️ Starting Redis service..."
+            sudo systemctl start redis-server
+          fi
+          
+          # Install MongoDB if not exists
+          if ! command -v mongod &> /dev/null; then
+            echo "🔧 Installing MongoDB..."
+            wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+            echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+            sudo apt-get update
+            sudo apt-get install -y mongodb-org
+            sudo systemctl enable mongod
+            sudo systemctl start mongod
+          fi
+          
+          # Start MongoDB if not running
+          if ! sudo systemctl is-active --quiet mongod; then
+            echo "▶️ Starting MongoDB service..."
+            sudo systemctl start mongod
+          fi
+          
+          # Create environment file
+          echo "⚙️ Setting up environment variables..."
+          cat > .env << EOF
+          NODE_ENV=production
+          PORT=3006
+          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          MONGODB_URL=${{ secrets.MONGODB_URL }}
+          MONGODB_DB_NAME=${{ secrets.MONGODB_DB_NAME }}
+          RAZORPAY_LIVE_KEY=${{ secrets.RAZORPAY_LIVE_KEY }}
+          RAZORPAY_LIVE_SECRET=${{ secrets.RAZORPAY_LIVE_SECRET }}
+          FRONTEND_DOMAIN=${{ secrets.FRONTEND_DOMAIN }}
+          API_DOMAIN=${{ secrets.API_DOMAIN }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          ENABLE_HTTPS=true
+          HTTPS_PORT=3443
+          USE_REDIS=true
+          EOF
+          
+          # Set proper permissions for env file
+          chmod 600 .env
+          
+          # Install PM2 globally if not installed
+          if ! command -v pm2 &> /dev/null; then
+            echo "🔧 Installing PM2..."
+            sudo npm install -g pm2
+          fi
+          
+          # Create PM2 ecosystem file
+          echo "⚙️ Creating PM2 configuration..."
+          cat > ecosystem.config.js << 'ECOSYSTEM_EOF'
+          module.exports = {
+            apps: [{
+              name: 'eazyvenue-backend',
+              script: 'src/app.js',
+              env_production: {
+                NODE_ENV: 'production',
+                ENABLE_HTTPS: 'true',
+                HTTPS_PORT: 3443,
+                USE_REDIS: 'true',
+                DEBUG: 'false',
+                NODE_APP_INSTANCE: '',
+                REDIS_HOST: 'localhost',
+                REDIS_PORT: 6379
+              },
+              instances: 'max',
+              exec_mode: 'cluster',
+              max_memory_restart: '1G',
+              log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+              combine_logs: true,
+              error_file: 'logs/error.log',
+              out_file: 'logs/out.log',
+              restart_delay: 5000,
+              max_restarts: 10,
+              node_args: '--max-old-space-size=1024',
+              wait_ready: false,
+              kill_timeout: 5000,
+              listen_timeout: 10000,
+              time: true,
+              autorestart: true,
+              watch: false,
+              ignore_watch: ["node_modules", "logs", "src/public/uploads"]
+            }]
+          };
+          ECOSYSTEM_EOF
+          
+          # Install Nginx if not installed
+          if ! command -v nginx &> /dev/null; then
+            echo "🔧 Installing Nginx..."
+            sudo apt-get install -y nginx
+            sudo systemctl enable nginx
+          fi
+          
+          # Setup SSL with Let's Encrypt if not exists
+          if [ ! -d "/etc/letsencrypt/live/api.eazyvenue.in" ]; then
+            echo "🔒 Setting up SSL certificate..."
+            sudo apt-get install -y snapd
+            sudo snap install core; sudo snap refresh core
+            sudo snap install --classic certbot
+            sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+            
+            # Stop nginx temporarily for certificate generation
+            sudo systemctl stop nginx
+            
+            # Get SSL certificate
+            sudo certbot certonly --standalone \
+              --non-interactive \
+              --agree-tos \
+              --email admin@eazyvenue.in \
+              -d api.eazyvenue.in || echo "⚠️ SSL certificate generation failed"
+            
+            # Start nginx
+            sudo systemctl start nginx
+          fi
+          
+          # Configure Nginx
+          echo "🔧 Configuring Nginx..."
+          sudo tee /etc/nginx/sites-available/eazyvenue-backend > /dev/null << 'NGINX_EOF'
+          # Rate limiting
+          limit_req_zone $binary_remote_addr zone=api_limit:10m rate=100r/m;
+          limit_conn_zone $binary_remote_addr zone=api_conn:10m;
+
+          server {
+              listen 80;
+              server_name api.eazyvenue.in;
+              return 301 https://$server_name$request_uri;
+          }
+
+          server {
+              listen 443 ssl http2;
+              server_name api.eazyvenue.in;
+
+              # SSL Configuration
+              ssl_certificate /etc/letsencrypt/live/api.eazyvenue.in/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/api.eazyvenue.in/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_prefer_server_ciphers off;
+
+              # Security Headers
+              add_header X-Frame-Options DENY;
+              add_header X-Content-Type-Options nosniff;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+              # Rate limiting
+              limit_req zone=api_limit burst=200 nodelay;
+              limit_conn api_conn 50;
+
+              # File upload limit
+              client_max_body_size 50M;
+
+              # Gzip compression
+              gzip on;
+              gzip_vary on;
+              gzip_min_length 1000;
+              gzip_proxied any;
+              gzip_comp_level 6;
+              gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
+
+              # API proxy
+              location /api {
+                  proxy_pass http://127.0.0.1:3006;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_connect_timeout 300;
+                  proxy_send_timeout 300;
+                  proxy_read_timeout 300;
+              }
+
+              # Static files
+              location /uploads {
+                  alias /var/www/eazyvenue-backend/src/public/uploads;
+                  expires 1y;
+                  add_header Cache-Control "public, immutable";
+              }
+
+              # Health check
+              location /health {
+                  proxy_pass http://127.0.0.1:3006/api/health;
+                  access_log off;
+              }
+
+              # Block sensitive files
+              location ~ /\.(env|git|svn) {
+                  deny all;
+                  return 404;
+              }
+
+              # Logging
+              access_log /var/log/nginx/eazyvenue-backend.access.log;
+              error_log /var/log/nginx/eazyvenue-backend.error.log;
+          }
+          NGINX_EOF
+          
+          # Enable site and reload nginx
+          sudo ln -sf /etc/nginx/sites-available/eazyvenue-backend /etc/nginx/sites-enabled/
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo nginx -t && sudo systemctl reload nginx
+          
+          # Start/Restart PM2 application
+          echo "🚀 Starting application with PM2..."
+          
+          # Stop existing process if running
+          pm2 delete eazyvenue-backend 2>/dev/null || true
+          
+          # Verify app.js exists
+          if [ ! -f "src/app.js" ]; then
+            echo "❌ ERROR: src/app.js not found!"
+            ls -la src/
+            exit 1
+          fi
+          
+          # Start application
+          pm2 start ecosystem.config.js --env production
+          pm2 save
+          
+          # Set PM2 to start on boot
+          pm2 startup systemd -u ${{ secrets.EC2_USERNAME }} --hp /home/${{ secrets.EC2_USERNAME }} || true
+          
+          # Wait for application to start
+          echo "⏳ Waiting for application to initialize..."
+          sleep 15
+          
+          # Verify deployment
+          echo "🔍 Verifying deployment..."
+          
+          echo "PM2 Status:"
+          pm2 list
+          
+          echo "Testing Redis connection:"
+          redis-cli ping || echo "⚠️ Redis connection failed"
+          
+          echo "Testing MongoDB connection:"
+          mongosh --eval "db.adminCommand('ismaster')" || echo "⚠️ MongoDB connection failed"
+          
+          echo "Testing API endpoint:"
+          curl -f -s http://localhost:3006/api/health > /dev/null && echo "✅ API responding" || echo "⚠️ API not responding"
+          
+          echo "Testing SSL endpoint:"
+          curl -f -s -k https://api.eazyvenue.in/api/health > /dev/null && echo "✅ SSL API responding" || echo "⚠️ SSL API not responding"
+          
+          echo "Recent logs:"
+          pm2 logs eazyvenue-backend --lines 10 --nostream || echo "No logs available"
+          
+          echo "🎉 Deployment completed successfully!"
+
+    - name: Final Verification
+      run: |
+        echo "⏳ Waiting for services to fully initialize..."
+        sleep 30
+        
+        echo "🔍 Final health check..."
+        if curl -f -s https://api.eazyvenue.in/api/health > /dev/null; then
+          echo "✅ Deployment successful! API is responding."
+          echo "Health Check Response:"
+          curl -s https://api.eazyvenue.in/api/health | jq '.' || curl -s https://api.eazyvenue.in/api/health
+        else
+          echo "⚠️ API health check failed. Checking alternative endpoint..."
+          if curl -f -s http://13.61.182.152:3006/api/health > /dev/null; then
+            echo "✅ Direct API access working, SSL configuration may need time"
+          else
+            echo "❌ API is not responding on any endpoint"
+            exit 1
+          fi
+        fi

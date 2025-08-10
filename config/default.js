@@ -4,8 +4,8 @@ module.exports = {
     root: "/api",
   },
   frontEnd: {
-        domain: 'https://eazyvenue.com',
-        picPath: 'https://api.eazyvenue.com'
+        domain: 'https://eazyvenue.in',
+        picPath: 'https://api.eazyvenue.in'
         // domain: 'https://localhost:4200',
         // picPath: 'http://localhost:3006',
     },

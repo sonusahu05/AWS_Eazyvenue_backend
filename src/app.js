@@ -11,6 +11,7 @@ const fs = require('fs');
 const https = require('https');
 const swaggerDocument = require('./swagger.json');
 const logger = require('./utils/logger');
+const redisClient = require('./utils/redisClient');
 const venueReviewRoutes = require('./api/venue/venueReview');
 
 const { url } = config.get('db');
@@ -25,6 +26,19 @@ mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true })
   .catch(err => {
     console.error(`Error connecting to MongoDB: ${err.message}`);
     process.exit(1);
+  });
+
+// Initialize Redis connection
+console.log('Connecting to Redis...');
+redisClient.connect()
+  .then(() => {
+    console.log('Redis connected successfully.');
+    logger.infoLog.info('Redis client has been successfully created from app.js');
+  })
+  .catch(err => {
+    console.error(`Error connecting to Redis: ${err.message}`);
+    // Don't exit on Redis connection failure, continue without caching
+    logger.errorLog.error('Redis connection failed, continuing without caching');
   });
 
 // Global error handlers for uncaught exceptions and unhandled promise rejections
@@ -196,6 +210,37 @@ app.use(`${root}/bookings`, bookingRoutes);
 
 app.use(logErrors);
 app.use(clientErrorHandler);
+
+// Health check endpoint
+app.get(`${root}/health`, async (req, res) => {
+  const healthCheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now(),
+    service: 'eazyvenue-backend',
+    version: require('../package.json').version,
+    environment: process.env.NODE_ENV || 'development',
+    memory: process.memoryUsage(),
+    pid: process.pid
+  };
+  
+  // Check MongoDB connection
+  if (mongoose.connection.readyState === 1) {
+    healthCheck.database = 'connected';
+  } else {
+    healthCheck.database = 'disconnected';
+  }
+  
+  // Check Redis connection
+  try {
+    const redisHealth = await redisClient.healthCheck();
+    healthCheck.redis = redisHealth;
+  } catch (error) {
+    healthCheck.redis = { status: 'error', error: error.message };
+  }
+  
+  res.status(200).json(healthCheck);
+});
 
 // Basic route for testing
 app.get('/', (req, res) => {
