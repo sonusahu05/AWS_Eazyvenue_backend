@@ -114,18 +114,20 @@ function clientErrorHandler(err, req, res, next) {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// CORS configuration comment
-// app.use(cors({
-//   origin: [
-//     'http://localhost:4200',
-//     'http://localhost:3000',
-//     'https://eazyvenue.com',
-//     'https://www.eazyvenue.com'
-//   ],
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-// }));
+// CORS configuration - Enable for frontend access
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    'http://localhost:3000',
+    'https://eazyvenue.in',
+    'https://www.eazyvenue.in',
+    'https://eazyvenue.com',
+    'https://www.eazyvenue.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 const auth = passport.authenticate('jwt', { session: false });
 
