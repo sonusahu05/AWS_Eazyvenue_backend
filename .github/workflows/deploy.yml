@@ -24,7 +24,7 @@ jobs:
         node-version: '18'
 
     - name: Install dependencies
-      run: npm ci --production
+      run: npm ci --omit=dev
 
     - name: Run tests (if any)
       run: |
@@ -39,15 +39,17 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           # Set deployment variables
-          DEPLOY_DIR="/var/www/eazyvenue-backend"
+          DEPLOY_DIR="/home/ubuntu/aws/eazyvenue-backend"
           REPO_URL="https://${{ secrets.ACCESS_TOKEN }}@github.com/sonusahu05/AWS_Eazyvenue_backend.git"
           
           echo "🚀 Starting Eazyvenue Backend Deployment..."
           echo "Deploy directory: $DEPLOY_DIR"
           
           # Create deployment directory if it doesn't exist
-          sudo mkdir -p $DEPLOY_DIR
-          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} $DEPLOY_DIR
+          mkdir -p $DEPLOY_DIR
+          
+          # Create aws directory if it doesn't exist
+          mkdir -p /home/ubuntu/aws
           
           # Set Git configs if not already set
           if [ -z "$(git config --global user.email)" ]; then
@@ -60,11 +62,11 @@ jobs:
           if [ -d "$UPLOADS_DIR" ]; then
             echo "📂 Preserving uploads directory..."
             # Create backup of uploads
-            sudo cp -R "$UPLOADS_DIR" "/tmp/uploads_backup_$(date +%Y%m%d_%H%M%S)" || true
+            cp -R "$UPLOADS_DIR" "/tmp/uploads_backup_$(date +%Y%m%d_%H%M%S)" || true
             # Ensure gitignore exists
             if [ ! -f "$UPLOADS_DIR/.gitignore" ]; then
-              echo "*" | sudo tee "$UPLOADS_DIR/.gitignore"
-              echo "!.gitignore" | sudo tee -a "$UPLOADS_DIR/.gitignore"
+              echo "*" > "$UPLOADS_DIR/.gitignore"
+              echo "!.gitignore" >> "$UPLOADS_DIR/.gitignore"
             fi
           fi
           
@@ -74,8 +76,7 @@ jobs:
             cd $DEPLOY_DIR
             
             # Fix ownership and permissions
-            sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} .
-            sudo chmod -R u+rw .
+            chmod -R u+rw .
             
             # Update remote URL with token
             git remote set-url origin $REPO_URL
@@ -84,7 +85,7 @@ jobs:
             git fetch origin main || {
               echo "❌ Failed to fetch. Re-cloning repository..."
               cd /tmp
-              sudo rm -rf $DEPLOY_DIR
+              rm -rf $DEPLOY_DIR
               git clone --depth=1 --branch main $REPO_URL $DEPLOY_DIR
             }
             
@@ -93,7 +94,7 @@ jobs:
               git reset --hard origin/main || {
                 echo "❌ Failed to reset. Re-cloning repository..."
                 cd /tmp
-                sudo rm -rf $DEPLOY_DIR
+                rm -rf $DEPLOY_DIR
                 git clone --depth=1 --branch main $REPO_URL $DEPLOY_DIR
               }
             fi
@@ -101,7 +102,7 @@ jobs:
             echo "📥 Cloning repository..."
             # Backup existing directory if it exists
             if [ -d "$DEPLOY_DIR" ]; then
-              sudo mv $DEPLOY_DIR $DEPLOY_DIR"_backup_$(date +%Y%m%d_%H%M%S)"
+              mv $DEPLOY_DIR $DEPLOY_DIR"_backup_$(date +%Y%m%d_%H%M%S)"
             fi
             
             # Clone fresh repository
@@ -111,16 +112,15 @@ jobs:
           # Ensure we're in the correct directory
           cd $DEPLOY_DIR
           
-          # Set proper ownership and permissions
-          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} .
-          sudo chmod -R u+rw .
+          # Set proper permissions
+          chmod -R u+rw .
           
           # Restore uploads backup if needed
           if [ -d "/tmp/uploads_backup_"* ]; then
             echo "📁 Restoring uploads backup..."
             LATEST_BACKUP=$(ls -td /tmp/uploads_backup_* | head -1)
-            sudo cp -R "$LATEST_BACKUP"/* "$UPLOADS_DIR/" 2>/dev/null || true
-            sudo rm -rf /tmp/uploads_backup_*
+            cp -R "$LATEST_BACKUP"/* "$UPLOADS_DIR/" 2>/dev/null || true
+            rm -rf /tmp/uploads_backup_*
           fi
           
           # Install dependencies
@@ -130,8 +130,7 @@ jobs:
           # Setup directories
           mkdir -p src/public/uploads
           mkdir -p logs
-          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} src/public/uploads
-          sudo chmod -R 755 src/public/uploads
+          chmod -R 755 src/public/uploads
           
           # Install and configure Redis
           if ! command -v redis-server &> /dev/null; then
@@ -321,7 +320,7 @@ jobs:
 
               # Static files
               location /uploads {
-                  alias /var/www/eazyvenue-backend/src/public/uploads;
+                  alias /home/ubuntu/aws/eazyvenue-backend/src/public/uploads;
                   expires 1y;
                   add_header Cache-Control "public, immutable";
               }
