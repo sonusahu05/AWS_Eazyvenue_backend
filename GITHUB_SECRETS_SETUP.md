@@ -24,7 +24,7 @@ MIIEpAIBAAKCAQEA...
 ```
 JWT_ACCESS_SECRET=A78D2E0F6823BF1F437C3E2B64D7D6C5098407C8B21D92E12D62B43527E00A97
 JWT_REFRESH_SECRET=y6DNKhzqRdGthMBDsYclOUcCGenNZ42GKqi7Vh17wvJDRggK8eUGD7j4H9swh2G
-MONGODB_URL=mongodb://admin:Pass_9702@127.0.0.1:27017/admin
+MONGODB_URL=mongodb://13.61.182.152:27017/admin
 MONGODB_DB_NAME=admin
 RAZORPAY_LIVE_KEY=rzp_live_oyCHow0OxfS8oL
 RAZORPAY_LIVE_SECRET=epGc231JkMUV7jlaJ3NpKO9e
@@ -42,7 +42,7 @@ gh secret set ACCESS_TOKEN --body 'your_github_token_here' --repo sonusahu05/AWS
 gh secret set EC2_SSH_KEY --body-file '/path/to/your/private/key.pem' --repo sonusahu05/AWS_Eazyvenue_backend
 gh secret set JWT_ACCESS_SECRET --body 'A78D2E0F6823BF1F437C3E2B64D7D6C5098407C8B21D92E12D62B43527E00A97' --repo sonusahu05/AWS_Eazyvenue_backend
 gh secret set JWT_REFRESH_SECRET --body 'y6DNKhzqRdGthMBDsYclOUcCGenNZ42GKqi7Vh17wvJDRggK8eUGD7j4H9swh2G' --repo sonusahu05/AWS_Eazyvenue_backend
-gh secret set MONGODB_URL --body 'mongodb://admin:Pass_9702@127.0.0.1:27017/admin' --repo sonusahu05/AWS_Eazyvenue_backend
+gh secret set MONGODB_URL --body 'mongodb://13.61.182.152:27017/admin' --repo sonusahu05/AWS_Eazyvenue_backend
 gh secret set MONGODB_DB_NAME --body 'admin' --repo sonusahu05/AWS_Eazyvenue_backend
 gh secret set REDIS_URL --body 'redis://127.0.0.1:6379' --repo sonusahu05/AWS_Eazyvenue_backend
 gh secret set FRONTEND_DOMAIN --body 'https://eazyvenue.in' --repo sonusahu05/AWS_Eazyvenue_backend

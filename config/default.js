@@ -27,7 +27,7 @@ module.exports = {
     },
   },
   db: {
-    url: "mongodb://admin:Pass_9702@160.153.173.104:27017/admin",
+    url: "mongodb://13.61.182.152:27017/admin",
     name: "admin",
   },
   payment: {

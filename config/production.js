@@ -23,7 +23,7 @@ module.exports = {
     },
   },
   db: {
-    url: process.env.MONGODB_URL || "mongodb://admin:Pass_9702@127.0.0.1:27017/admin",
+    url: process.env.MONGODB_URL || "mongodb://13.61.182.152:27017/admin",
     name: process.env.MONGODB_DB_NAME || "admin",
   },
   redis: {
