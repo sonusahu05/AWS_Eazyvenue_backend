@@ -26,6 +26,7 @@ module.exports = {
     url: process.env.MONGODB_URL || "mongodb://13.61.182.152:27017/admin",
     name: process.env.MONGODB_DB_NAME || "admin",
   },
+  
   redis: {
     url: process.env.REDIS_URL || "redis://127.0.0.1:6379",
     options: {
