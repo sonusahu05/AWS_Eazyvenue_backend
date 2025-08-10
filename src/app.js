@@ -167,13 +167,12 @@ app.use(express.json());
 const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
 
-// Serve uploads directory
-const uploadsDir = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsDir));
-
-// Alternative uploads path for backward compatibility
+// Serve uploads directory - PRIMARY PATH for migrated images
 const publicUploadsDir = path.join(__dirname, 'public/uploads');
 app.use('/uploads', express.static(publicUploadsDir));
+
+// Log the uploads directory path for debugging
+console.log('Serving uploads from:', publicUploadsDir);
 
 // Routes for common controllers
 app.use(`${root}/auth`, authController);
