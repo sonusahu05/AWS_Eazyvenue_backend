@@ -1,3 +1,6 @@
+require('dotenv').config(); // ✅ Load .env
+const aiSearchRoute = require('./api/aisearch/ai-search.route')(process.env.OPENAI_API_KEY);
+
 console.log('Starting the application...');
 const express = require('express');
 const cors = require('cors');
@@ -96,6 +99,9 @@ const { port, root } = config.get('api') || { port: 3000, root: '/api' };
 // Body parser configuration
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
+app.use('/api/venue', venueRoutes);
+app.use('/api/aiSearch', aiSearchRoute);
+
 
 // Middleware for error handling
 function logErrors(err, req, res, next) {
@@ -160,6 +166,8 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
+app.use(aiSearchRoute);
+
 
 // Static file serving configuration
 const profileDir = path.join(__dirname, 'public');

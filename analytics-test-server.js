@@ -251,6 +251,22 @@ app.get('/health', (req, res) => {
     });
 });
 
+
+// Define the /api/aisearch POST route
+app.post('/api/aisearch', (req, res) => {
+  const prompt = req.body.prompt;
+  if (!prompt) {
+    return res.status(400).json({ success: false, error: 'No prompt provided' });
+  }
+
+  // Dummy AI suggestion logic — replace with your own
+  const suggestion = `You asked for: "${prompt}". Here is a suggestion based on venues.`;
+
+  res.json({ success: true, suggestion });
+});
+
+
+
 // Start server
 app.listen(port, () => {
     console.log(`🚀 Analytics API Test Server running on http://localhost:${port}`);

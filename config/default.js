@@ -1,4 +1,5 @@
 module.exports = {
+  // mongoURI: 'mongodb://localhost:27017/admin',
   api: {
     port: 3006,
     root: "/api",
