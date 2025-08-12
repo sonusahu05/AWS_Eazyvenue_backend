@@ -181,11 +181,11 @@ app.use(express.json());
 app.use(aiSearchRoute);
 
 // Static file serving configuration
-const profileDir = path.join(__dirname, 'public');
+const profileDir = path.join(__dirname, '../public');
 app.use(express.static(profileDir));
 
 // Alternative uploads path for backward compatibility
-const publicUploadsDir = path.join(__dirname, 'public/uploads');
+const publicUploadsDir = path.join(__dirname, '../public/uploads');
 app.use('/uploads', express.static(publicUploadsDir));
 
 // Serve uploads directory
