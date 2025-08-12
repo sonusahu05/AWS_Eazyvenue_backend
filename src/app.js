@@ -180,17 +180,11 @@ seedService.checkAndSeed();
 app.use(express.json());
 app.use(aiSearchRoute);
 
-// Static file serving configuration
-const profileDir = path.join(__dirname, '../public');
-app.use(express.static(profileDir));
-
-// Alternative uploads path for backward compatibility
-const publicUploadsDir = path.join(__dirname, '../public/uploads');
-app.use('/uploads', express.static(publicUploadsDir));
+// Serve uploads directory - PRIMARY PATH for migrated images
 
 // Serve uploads directory
-const uploadsDir = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsDir));
+const publicUploadsDir = path.join(__dirname, 'public/uploads');
+app.use('/uploads', express.static(publicUploadsDir));
 
 // Log the uploads directory path for debugging
 console.log('Serving uploads from:', publicUploadsDir);
