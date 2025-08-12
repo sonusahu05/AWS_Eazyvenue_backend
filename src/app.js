@@ -180,6 +180,8 @@ seedService.checkAndSeed();
 app.use(express.json());
 app.use(aiSearchRoute);
 
+const profileDir = path.join(__dirname, 'public');
+app.use(express.static(profileDir));
 // Serve uploads directory - PRIMARY PATH for migrated images
 
 // Serve uploads directory
