@@ -106,7 +106,20 @@ const bookingRoutes = require('./api/bookings/bookingRoutes');
 // Initialize the application
 const app = express();
 const { port, root } = config.get('api') || { port: 3000, root: '/api' };
-
+// CORS configuration - Enable for frontend access
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    'http://localhost:3000',
+    'https://eazyvenue.in',
+    'https://www.eazyvenue.in',
+    'https://eazyvenue.com',
+    'https://www.eazyvenue.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 // Body parser configuration
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
@@ -130,20 +143,7 @@ function clientErrorHandler(err, req, res, next) {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// CORS configuration - Enable for frontend access
-app.use(cors({
-  origin: [
-    'http://localhost:4200',
-    'http://localhost:3000',
-    'https://eazyvenue.in',
-    'https://www.eazyvenue.in',
-    'https://eazyvenue.com',
-    'https://www.eazyvenue.com'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+
 
 const auth = passport.authenticate('jwt', { session: false });
 
