@@ -105,12 +105,12 @@ const bookingRoutes = require('./api/bookings/bookingRoutes');
 
 // Initialize the application
 const app = express();
-const { port, root } = config.get('api') || { port: 3000, root: '/api' };
+const { port, root } = config.get('api') || { port: 3006, root: '/api' };
 // CORS configuration - Enable for frontend access
 app.use(cors({
   origin: [
     'http://localhost:4200',
-    'http://localhost:3000',
+    'http://localhost:3006',
     'https://eazyvenue.in',
     'https://www.eazyvenue.in',
     'https://eazyvenue.com',
