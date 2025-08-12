@@ -187,7 +187,7 @@ app.use(express.static(profileDir));
 // Serve uploads directory
 const publicUploadsDir = path.join(__dirname, 'public/uploads');
 app.use('/uploads', express.static(publicUploadsDir));
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // Log the uploads directory path for debugging
 console.log('Serving uploads from:', publicUploadsDir);
 
