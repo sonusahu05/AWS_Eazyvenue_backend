@@ -49,6 +49,11 @@ const venueSchema = new mongoose.Schema({
         name: String,
         value: String
     }],
+    menuPDF: {
+        filename: String,
+        path: String,
+        uploadDate: { type: Date, default: Date.now }
+    },
     shortdescription: String,
     reviews: [{
         reviewdescription: String,
@@ -68,6 +73,11 @@ const venueSchema = new mongoose.Schema({
     acdetails: String,
     kitchendetails: String,
     decorationdetails: String,
+    amenitiesArray: [{
+    name: String,
+    icon: String,
+    enabled: { type: Boolean, default: false }
+    }],
     parkingdetails: String,
     capacityDescription: String,
     address: String,

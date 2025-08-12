@@ -22,11 +22,121 @@ var moment = require('moment');
 const multer = require('multer');
 const path = require('path');
 
+// Configure multer for menu PDF uploads
+const menuPDFStorage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        const uploadPath = path.join(__dirname, '../../../uploads/menus');
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        }
+        cb(null, uploadPath);
+    },
+    filename: function(req, file, cb) {
+        cb(null, `menu-${Date.now()}${path.extname(file.originalname)}`);
+    }
+});
+
+const uploadMenuPDF = multer({
+    storage: menuPDFStorage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed!'));
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+}).single('menuPDF');
+
 const PostavailabilityService = require('../postavailability/postavailabilityService');
 const postavailabilityService = new PostavailabilityService();
 const mongoose = require('mongoose');
 const Category = require("../../../model/Category");
 
+
+function uploadVenueImage(venueImage) {
+    var decorImagefilename = [];
+    venueImage.forEach(element => {
+        const venueImageData = element.file;
+        const fileType = venueImageData.match(/[^:/]\w+(?=;|,)/)[0];
+        decorFile = uuidv1() + "." + fileType;
+        decorImagefilename.push({ venue_image_src: decorFile, alt: element.alt, default: element.default });
+        venuePath = picture.decorPicFolder + decorFile;
+        let venuefilename;
+        venuefilename = __dirname + "/../../../" + venuePath;
+
+        var base64Data;
+        if (venueImageData.indexOf("data:image/png;") !== -1) {
+            base64Data = venueImageData.replace(/^data:image\/png;base64,/, "");
+        } else if (venueImageData.indexOf("data:image/jpg;") !== -1) {
+            base64Data = venueImageData.replace(/^data:image\/jpg;base64,/, "");
+        } else if (venueImageData.indexOf("data:image/jpeg") !== -1) {
+            base64Data = venueImageData.replace(/^data:image\/jpeg;base64,/, "");
+        }
+
+        if (typeof base64Data == 'undefined') {
+            res.json({ message: "Only png, jpg, jpeg files are allowed!!" });
+        } else if (base64Data != "") {
+
+            require("fs").writeFile(venuefilename, base64Data, 'base64', function (err) {
+                console.log(err);
+            });
+        }
+    });
+    return decorImagefilename;
+}
+
+router.post('/uploadMenuPDF/:venueId', auth, (req, res) => {
+    uploadMenuPDF(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({
+                success: false,
+                message: err.message || 'Error uploading menu PDF'
+            });
+        }
+
+        try {
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No file uploaded'
+                });
+            }
+
+            const venue = await Venue.findById(req.params.venueId);
+            if (!venue) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Venue not found'
+                });
+            }
+
+            // Update venue with menu PDF info
+            venue.menuPDF = {
+                filename: req.file.filename,
+                path: `/uploads/menus/${req.file.filename}`,
+                uploadDate: new Date()
+            };
+
+            await venue.save();
+
+            res.json({
+                success: true,
+                message: 'Menu PDF uploaded successfully',
+                menuPDF: venue.menuPDF
+            });
+        } catch (error) {
+            console.error('Error in menu PDF upload:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error saving menu PDF information'
+            });
+        }
+    });
+});
 
 function uploadVenueImage(venueImage) {
     var decorImagefilename = [];

@@ -1,3 +1,17 @@
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1); // Optional: let the app crash visibly
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
+
+require('dotenv').config(); // ✅ Load .env
+const aiSearchRoute = require('./api/aisearch/ai-search.route')(process.env.OPENAI_API_KEY);
+
 console.log('Starting the application...');
 const express = require('express');
 const cors = require('cors');
@@ -96,6 +110,8 @@ const { port, root } = config.get('api') || { port: 3000, root: '/api' };
 // Body parser configuration
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
+app.use('/api/venue', venueRoutes);
+app.use('/api/aiSearch', aiSearchRoute);
 
 // Middleware for error handling
 function logErrors(err, req, res, next) {
@@ -162,14 +178,19 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
+app.use(aiSearchRoute);
 
 // Static file serving configuration
 const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
 
-// Serve uploads directory - PRIMARY PATH for migrated images
+// Alternative uploads path for backward compatibility
 const publicUploadsDir = path.join(__dirname, 'public/uploads');
 app.use('/uploads', express.static(publicUploadsDir));
+
+// Serve uploads directory
+const uploadsDir = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Log the uploads directory path for debugging
 console.log('Serving uploads from:', publicUploadsDir);
