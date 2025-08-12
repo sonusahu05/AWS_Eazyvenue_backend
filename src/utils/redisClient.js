@@ -12,7 +12,15 @@ class RedisClient {
 
   async connect() {
     try {
-      const redisConfig = config.get('redis') || {};
+      // const redisConfig = config.get('redis') || {};
+      let redisConfig = {};
+try {
+  redisConfig = config.get('redis');
+} catch (err) {
+  // No redis config found, proceed with empty object
+  redisConfig = {};
+}
+
       const redisUrl = redisConfig.url || process.env.REDIS_URL || 'redis://127.0.0.1:6379';
       
       this.client = redis.createClient({
