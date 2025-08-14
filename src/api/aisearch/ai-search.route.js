@@ -1,6 +1,7 @@
 const express = require('express');
 const { Configuration, OpenAIApi } = require('openai');
 const Venue = require('../venue/venue.model');
+const config = require('config');
 
 module.exports = (openaiKey) => {
   const router = express.Router(); // ✅ Moved to top
@@ -17,8 +18,8 @@ module.exports = (openaiKey) => {
     console.error('❌ Failed to init OpenAI:', err.message);
   }
 
-  router.post('/api/aisearch', async (req, res) => {
-    console.log('📩 /api/aisearch hit');
+  router.post('/aisearch', async (req, res) => {
+    console.log('📩 /aisearch hit');
 
     const { prompt } = req.body;
     if (!prompt || prompt.trim() === '') {
@@ -39,7 +40,7 @@ module.exports = (openaiKey) => {
 
 const formattedVenues = venues.map(v => {
   const imageUrls = v.venueImage?.map(img =>
-    `http://localhost:3006/uploads/${img.venue_image_src}`
+    `${config.get('frontEnd.picPath')}/uploads/${img.venue_image_src}`
   ).join(', ') || 'No images';
 
   return `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${(v.description || 'N/A').substring(0, 150)}, mobileNumber: ${v.mobileNumber || 'N/A'}, venueImage: ${imageUrls}`;
