@@ -58,9 +58,15 @@ const formattedVenues = venues.map(v => {
 // Only use the given venues. Return the names and short reasons.
 // `;
 const systemPrompt = `
-You are a helpful assistant. Return ONLY a valid JSON array of 4 venue suggestions based on the user's query and the list below.
+You are a helpful assistant. You will return ONLY a valid JSON array of 4 venue suggestions from the list below, based on the user's query.
 
-Each venue must follow this format exactly:
+Strict Rules:
+1. First filter venues by location — only include venues located in or near the location mentioned by the user.
+2. If no venues match the location exactly, choose the closest matching nearby locations from the list.
+3. Match venues by both location AND keywords from the query.
+4. If fewer than 4 matches exist, return only the matches available — do not add unrelated venues.
+
+Format for each venue:
 {
   "name": "string",
   "capacity": number,
@@ -71,16 +77,15 @@ Each venue must follow this format exactly:
 }
 
 Rules:
-- Match venues based on relevance to the user's query, especially location and keywords.
-- If no clear location or keyword is found, return the top 4 most popular venues from the list.
-- Return only the JSON array, no extra comments or explanation.
+- Return ONLY the JSON array, with no comments or extra text.
 - All fields must be strictly valid JSON.
 - Escape all characters that need escaping (quotes, newlines).
-- Do not generate fake data. Only pick from the venues listed below.
+- Do not generate or guess data — only pick from the venues listed below.
 
 Available Venues:
 ${formattedVenues}
 `;
+
 
 
 
