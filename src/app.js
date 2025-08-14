@@ -114,8 +114,7 @@ app.use(cors({
     'https://eazyvenue.in',
     'https://www.eazyvenue.in',
     'https://eazyvenue.com',
-    'https://www.eazyvenue.com',
-    'https://api.eazyvenue.in/api/'
+    'https://www.eazyvenue.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -125,7 +124,7 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use('/api/venue', venueRoutes);
-app.use('/api/aiSearch', aiSearchRoute);
+app.use('/api/aisearch', aiSearchRoute);
 
 // Middleware for error handling
 function logErrors(err, req, res, next) {
