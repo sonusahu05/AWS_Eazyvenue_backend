@@ -124,7 +124,7 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use('/api/venue', venueRoutes);
-app.use('/api/aisearch', aiSearchRoute);
+app.use('/api/aiSearch', aiSearchRoute);
 
 // Middleware for error handling
 function logErrors(err, req, res, next) {
