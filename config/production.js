@@ -101,7 +101,7 @@ module.exports = {
     indiaDltPrincipalEntityId: process.env.SMS_DLT_ENTITY_ID || "1201166521573805146",
   },
   openai: {
-    apiKey: process.env.OPENAI_API_KEY || "",
+    apiKey: process.env.OPENAI_API_KEY,
   },
   security: {
     corsOrigins: [

@@ -177,6 +177,7 @@ jobs:
           FRONTEND_DOMAIN=${{ secrets.FRONTEND_DOMAIN }}
           API_DOMAIN=${{ secrets.API_DOMAIN }}
           REDIS_URL=${{ secrets.REDIS_URL }}
+          OPENAI_API_KEY=${{ secrets.OPEN_AI }}
           ENABLE_HTTPS=true
           HTTPS_PORT=3443
           USE_REDIS=true
