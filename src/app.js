@@ -114,7 +114,8 @@ app.use(cors({
     'https://eazyvenue.in',
     'https://www.eazyvenue.in',
     'https://eazyvenue.com',
-    'https://www.eazyvenue.com'
+    'https://www.eazyvenue.com',
+    'https://api.eazyvenue.com/api/'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
