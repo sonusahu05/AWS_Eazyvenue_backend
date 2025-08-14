@@ -113,9 +113,6 @@ app.use(cors({
     'http://localhost:3006',
     'https://eazyvenue.in',
     'https://www.eazyvenue.in',
-    'https://eazyvenue.com',
-    'https://www.eazyvenue.com',
-    'https://api.eazyvenue.com/api/'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -124,11 +121,6 @@ app.use(cors({
 // Body parser configuration
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
-app.use('/api/venue', venueRoutes);
-<<<<<<< Updated upstream
-// app.use('/api/aiSearch', aiSearchRoute);
-=======
->>>>>>> Stashed changes
 app.use('/api/venue', venueRoutes);
 app.use('/api/aisearch', aiSearchRoute);
 
@@ -145,11 +137,6 @@ function clientErrorHandler(err, req, res, next) {
     next(err);
   }
 }
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-
 
 const auth = passport.authenticate('jwt', { session: false });
 
