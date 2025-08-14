@@ -39,8 +39,7 @@ module.exports = (openaiKey) => {
 
 const formattedVenues = venues.map(v => {
   const imageUrls = v.venueImage?.map(img =>
-    // `http://localhost:3006/uploads/${img.venue_image_src}`
-    `https://api.eazyvenue.in/api/uploads/${img.venue_image_src}`
+    `http://localhost:3006/uploads/${img.venue_image_src}`
   ).join(', ') || 'No images';
 
   return `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${(v.description || 'N/A').substring(0, 150)}, mobileNumber: ${v.mobileNumber || 'N/A'}, venueImage: ${imageUrls}`;

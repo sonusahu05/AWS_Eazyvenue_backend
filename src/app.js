@@ -114,8 +114,7 @@ app.use(cors({
     'https://eazyvenue.in',
     'https://www.eazyvenue.in',
     'https://eazyvenue.com',
-    'https://www.eazyvenue.com',
-    'https://api.eazyvenue.in/api'
+    'https://www.eazyvenue.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -179,7 +178,7 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
-// app.use(aiSearchRoute);
+app.use(aiSearchRoute);
 
 const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
