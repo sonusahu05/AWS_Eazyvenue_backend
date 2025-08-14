@@ -124,7 +124,8 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use('/api/venue', venueRoutes);
-app.use('/api/aiSearch', aiSearchRoute);
+// app.use('/api/aiSearch', aiSearchRoute);
+app.use('/api/aisearch', aiSearchRoute);
 
 // Middleware for error handling
 function logErrors(err, req, res, next) {
@@ -178,7 +179,7 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
-app.use(aiSearchRoute);
+// app.use(aiSearchRoute);
 
 const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
