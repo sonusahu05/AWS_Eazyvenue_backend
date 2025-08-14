@@ -72,6 +72,7 @@ Each venue must follow this format exactly:
 
 Rules:
 - Match venues based on relevance to the user's query, especially location and keywords.
+- If no clear location or keyword is found, return the top 4 most popular venues from the list.
 - Return only the JSON array, no extra comments or explanation.
 - All fields must be strictly valid JSON.
 - Escape all characters that need escaping (quotes, newlines).
@@ -80,6 +81,7 @@ Rules:
 Available Venues:
 ${formattedVenues}
 `;
+
 
 
 
