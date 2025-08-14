@@ -27,7 +27,72 @@ module.exports = (openaiKey) => {
     }
 
     try {
-      const venues = await Venue.find({}, 'name capacity location description capacity venueImage mobileNumber').limit(30);
+      // const venues = await Venue.find({}, 'name capacity location description capacity venueImage mobileNumber').limit(30);
+// --- fetch raw venues (unchanged) ---
+const venuesAll = await Venue.find({}, 'name capacity location description venueImage mobileNumber state cityname statename').limit(300);
+
+// Build a set of distinct location strings available in DB (cleaned)
+const locationCandidates = Array.from(new Set(
+  venuesAll
+    .map(v => (v.location || v.cityname || v.statename || '').trim())
+    .filter(Boolean)
+));
+
+// Lowercased prompt for comparisons
+const promptLower = (prompt || '').toLowerCase();
+
+let matchedLocation = null;
+
+// 1) Try simple substring match: any candidate that appears as substring in prompt
+for (const loc of locationCandidates) {
+  if (promptLower.includes(loc.toLowerCase())) {
+    matchedLocation = loc;
+    break;
+  }
+}
+
+// 2) If no direct match, try a simple word-occurrence heuristic (match by shared words)
+if (!matchedLocation && locationCandidates.length) {
+  let best = { loc: null, score: 0 };
+  for (const loc of locationCandidates) {
+    const locWords = loc.toLowerCase().split(/[\s,/-]+/).filter(Boolean);
+    let score = 0;
+    for (const w of locWords) {
+      if (w.length > 2 && promptLower.includes(w)) score++;
+    }
+    if (score > best.score) {
+      best = { loc, score };
+    }
+  }
+  // require at least 1 shared word to accept heuristic match
+  if (best.score >= 1) matchedLocation = best.loc;
+}
+
+// Log what we detected (helpful for debugging)
+console.log('🔎 Location candidates count:', locationCandidates.length);
+console.log('🔎 Prompt lower:', promptLower);
+console.log('🔎 Matched location (if any):', matchedLocation);
+
+// 3) Filter venues by matchedLocation if found, otherwise keep all
+let venues = venuesAll;
+if (matchedLocation) {
+  const mlower = matchedLocation.toLowerCase();
+  const filteredByLocation = venuesAll.filter(v => {
+    const locVal = (v.location || v.cityname || v.statename || '').toLowerCase();
+    return locVal.includes(mlower);
+  });
+
+  if (filteredByLocation.length > 0) {
+    venues = filteredByLocation;
+    console.log(`✅ Filtering venues to location "${matchedLocation}" -> ${venues.length} venues`);
+  } else {
+    // fallback: no exact matches found after filtering; keep all venues (or change to [] if you want strictness)
+    console.warn(`⚠️ No DB venues matched the detected location "${matchedLocation}". Falling back to all venues.`);
+    venues = venuesAll;
+  }
+} else {
+  console.log('ℹ️ No location inferred from prompt — sending all venues to the AI (consider stricter handling).');
+}
 
 
     //   const formattedVenues = venues.map(v =>
