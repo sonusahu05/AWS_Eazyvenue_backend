@@ -18,7 +18,7 @@ module.exports = (openaiKey) => {
     console.error('❌ Failed to init OpenAI:', err.message);
   }
 
-  router.post('/aisearch', async (req, res) => {
+  router.post('/', async (req, res) => {
     console.log('📩 /aisearch hit');
 
     const { prompt } = req.body;

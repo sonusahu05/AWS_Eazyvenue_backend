@@ -92,4 +92,7 @@ module.exports = {
     indiaDltContentTemplateId: "1207168932394709023",
     indiaDltPrincipalEntityId: "1201166521573805146",
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || "",
+  },
 };

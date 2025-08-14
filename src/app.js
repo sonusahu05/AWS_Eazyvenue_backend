@@ -10,14 +10,14 @@ process.on('unhandledRejection', (reason, promise) => {
 
 
 require('dotenv').config(); // ✅ Load .env
-const aiSearchRoute = require('./api/aisearch/ai-search.route')(process.env.OPENAI_API_KEY);
+const config = require('config');
+const aiSearchRoute = require('./api/aisearch/ai-search.route')(config.get('openai.apiKey') || process.env.OPENAI_API_KEY);
 
 console.log('Starting the application...');
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
 const bodyParser = require('body-parser');
-const config = require('config');
 const swaggerUi = require('swagger-ui-express');
 const mongoose = require('mongoose');
 const path = require('path');

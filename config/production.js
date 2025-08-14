@@ -100,6 +100,9 @@ module.exports = {
     indiaDltContentTemplateId: process.env.SMS_DLT_TEMPLATE_ID || "1207168932394709023",
     indiaDltPrincipalEntityId: process.env.SMS_DLT_ENTITY_ID || "1201166521573805146",
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || "",
+  },
   security: {
     corsOrigins: [
       process.env.FRONTEND_DOMAIN || 'https://eazyvenue.in',
