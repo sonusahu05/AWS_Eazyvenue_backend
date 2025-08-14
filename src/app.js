@@ -179,7 +179,7 @@ seedService.checkAndSeed();
 
 // Middleware configuration
 app.use(express.json());
-app.use(aiSearchRoute);
+// app.use(aiSearchRoute);
 
 const profileDir = path.join(__dirname, 'public');
 app.use(express.static(profileDir));
