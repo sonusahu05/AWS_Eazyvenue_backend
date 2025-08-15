@@ -103,6 +103,7 @@ const vendorRoutes = require('./api/vendor/vendor');
 const vendorOrderRoutes = require('./api/vendororder/vendororder');
 const analyticsRoutes = require('./api/analytics/geography/analytics');
 const bookingRoutes = require('./api/bookings/bookingRoutes');
+const instagramRoutes = require('./api/instagram/instagram');
 
 // Initialize the application
 const app = express();
@@ -222,6 +223,7 @@ app.use(`${root}/vendor`, vendorRoutes);
 app.use(`${root}/analytics/geography`, analyticsRoutes);
 app.use(`${root}/analytics/venue`, require('./api/analytics/venueAnalytics'));
 app.use(`${root}/bookings`, bookingRoutes);
+app.use(`${root}/instagram`, instagramRoutes);
 
 app.use(logErrors);
 app.use(clientErrorHandler);
