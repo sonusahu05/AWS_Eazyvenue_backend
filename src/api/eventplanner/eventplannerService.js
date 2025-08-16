@@ -162,6 +162,41 @@ class EnquiryService {
             throw error;
         }
     }
+
+    async deleteEnquiry(enquiryId) {
+        console.log('🗑️ SERVICE: Deleting enquiry with ID:', enquiryId);
+        
+        try {
+            // Validate the enquiry ID
+            if (!enquiryId) {
+                throw new Error('Enquiry ID is required for deletion');
+            }
+
+            // Find and delete the enquiry
+            const deletedEnquiry = await Enquiry.findByIdAndDelete(enquiryId);
+            
+            if (!deletedEnquiry) {
+                throw new Error('Enquiry not found');
+            }
+
+            console.log('🗑️ SERVICE: Successfully deleted enquiry:', deletedEnquiry._id);
+            
+            return {
+                success: true,
+                message: 'Enquiry deleted successfully',
+                deletedId: deletedEnquiry._id,
+                deletedData: {
+                    venueName: deletedEnquiry.venueName,
+                    userName: deletedEnquiry.userName,
+                    userContact: deletedEnquiry.userContact
+                }
+            };
+            
+        } catch (error) {
+            console.error('🗑️ SERVICE: Error in deleteEnquiry:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = EnquiryService;
