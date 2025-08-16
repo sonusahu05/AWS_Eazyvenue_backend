@@ -402,13 +402,67 @@ router.get('/competition/:venueId', async (req, res) => {
                             else: 0
                         }
                     },
-                    nonVegPrice: { 
-                        $cond: {
-                            if: { $gt: [{ $size: { $ifNull: ["$foodMenuType.non_veg_food", []] } }, 0] },
-                            then: { $toDouble: { $arrayElemAt: ["$foodMenuType.non_veg_food.value", 0] } },
-                            else: 0
+                  // Extract non-veg food price - get first available price from non_veg array
+nonVegPrice: {
+    $let: {
+        vars: {
+            nonVegArray: { $ifNull: ["$foodMenuType.non_veg", []] }  // Fixed: was "non_veg_food"
+        },
+        in: {
+            $let: {
+                vars: {
+                    enabledNonVegItems: {
+                        $filter: {
+                            input: "$$nonVegArray",
+                            cond: { 
+                                $and: [
+                                    { $ne: ["$$this.disabled", true] },
+                                    { $ne: ["$$this.value", null] },
+                                    { $ne: ["$$this.value", ""] },
+                                    { $ne: ["$$this.value", "0"] },
+                                    { $gt: [
+                                        { 
+                                            $toDouble: { 
+                                                $cond: {
+                                                    if: { $eq: [{ $type: "$$this.value" }, "string"] },
+                                                    then: { $toDouble: "$$this.value" },
+                                                    else: "$$this.value"
+                                                }
+                                            }
+                                        }, 
+                                        0 
+                                    ] }
+                                ]
+                            }
                         }
-                    },
+                    }
+                },
+                in: {
+                    $cond: {
+                        if: { $gt: [{ $size: "$$enabledNonVegItems" }, 0] },
+                        then: { 
+                            $toDouble: { 
+                                $let: {
+                                    vars: {
+                                        firstValue: { $arrayElemAt: ["$$enabledNonVegItems.value", 0] }
+                                    },
+                                    in: {
+                                        $cond: {
+                                            if: { $eq: [{ $type: "$$firstValue" }, "string"] },
+                                            then: { $toDouble: "$$firstValue" },
+                                            else: "$$firstValue"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        else: 0
+                    }
+                }
+            }
+        }
+    }
+},
                     // Add flag to identify current venue
                     isCurrentVenue: {
                         $cond: {
@@ -502,7 +556,7 @@ router.get('/competition/:venueId', async (req, res) => {
                 let currentAvgPrice = 0;
                 if (currentVenue.foodMenuType) {
                     const vegPrice = currentVenue.foodMenuType.veg_food?.[0]?.value || 0;
-                    const nonVegPrice = currentVenue.foodMenuType.non_veg_food?.[0]?.value || 0;
+                    const nonVegPrice = currentVenue.foodMenuType.non_veg?.[0]?.value || 0;
                     
                     if (vegPrice > 0 && nonVegPrice > 0) {
                         currentAvgPrice = (vegPrice + nonVegPrice) / 2;

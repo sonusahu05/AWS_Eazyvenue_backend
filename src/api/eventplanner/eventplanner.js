@@ -126,4 +126,31 @@ router.get("/:id", async (req, res) => {
     }
 });
 
+// Delete enquiry by ID
+router.delete("/:id", async (req, res) => {
+    console.log('🗑️ BACKEND: Deleting enquiry with ID:', req.params.id);
+    
+    try {
+        const result = await enquiryService.deleteEnquiry(req.params.id);
+        console.log('🗑️ BACKEND: Delete result:', result);
+        
+        res.status(200).json(result);
+        
+    } catch (error) {
+        console.error('🗑️ BACKEND: Error deleting enquiry:', error);
+        
+        if (error.message === 'Enquiry not found') {
+            return res.status(404).json({ 
+                success: false,
+                error: error.message 
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false,
+            error: error.message 
+        });
+    }
+});
+
 module.exports = router;

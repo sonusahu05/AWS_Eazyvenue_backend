@@ -27,7 +27,6 @@ const swaggerDocument = require('./swagger.json');
 const logger = require('./utils/logger');
 const redisClient = require('./utils/redisClient');
 const venueReviewRoutes = require('./api/venue/venueReview');
-
 const { url } = config.get('db');
 mongoose.set('strictQuery', false);
 
@@ -54,6 +53,7 @@ redisClient.connect()
     // Don't exit on Redis connection failure, continue without caching
     logger.errorLog.error('Redis connection failed, continuing without caching');
   });
+  
 
 // Global error handlers for uncaught exceptions and unhandled promise rejections
 process.on('uncaughtException', (err) => {
@@ -65,6 +65,7 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.errorLog.error('Unhandled Rejection at:', promise, 'reason:', reason);
   // Optional: exit the process if needed
 });
+
 
 // Load additional configurations and services
 require('./passport');
@@ -102,6 +103,7 @@ const vendorRoutes = require('./api/vendor/vendor');
 const vendorOrderRoutes = require('./api/vendororder/vendororder');
 const analyticsRoutes = require('./api/analytics/geography/analytics');
 const bookingRoutes = require('./api/bookings/bookingRoutes');
+const instagramRoutes = require('./api/instagram/instagram');
 
 // Initialize the application
 const app = express();
@@ -122,8 +124,7 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use('/api/venue', venueRoutes);
-app.use('/api/analytics', analyticsRoutes);
-
+app.use('/api/aiSearch', aiSearchRoute);
 // Middleware for error handling
 function logErrors(err, req, res, next) {
   logger.errorLog.error(err);
@@ -137,6 +138,10 @@ function clientErrorHandler(err, req, res, next) {
     next(err);
   }
 }
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
 
 const auth = passport.authenticate('jwt', { session: false });
 
@@ -218,6 +223,7 @@ app.use(`${root}/vendor`, vendorRoutes);
 app.use(`${root}/analytics/geography`, analyticsRoutes);
 app.use(`${root}/analytics/venue`, require('./api/analytics/venueAnalytics'));
 app.use(`${root}/bookings`, bookingRoutes);
+app.use(`${root}/instagram`, instagramRoutes);
 
 app.use(logErrors);
 app.use(clientErrorHandler);
@@ -258,7 +264,6 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
   console.log('GET request to /');
 });
-
 // Start the server
 app.listen(port, () => {
   console.log(`Server started and listening on port ${port}`);
