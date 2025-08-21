@@ -97,59 +97,108 @@ class BannerService {
     return this.repository.getPhoto(decoded.id);
   }
 
-  list(filter) {
+    list(filter) {
     return Promise.all([
       this.repository.listFiltered(filter),
       this.repository.getCountFiltered(filter),
     ])
-      .then(([data, totalRecords]) => {
+      .then(([data, totalCount]) => { // Changed 'totalRecords' to 'totalCount' for clarity
         return {
-          totalCount: totalRecords.length,
+          // FIX: Use the totalCount value directly. 
+          // It should be a number, not an array.
+          totalCount: totalCount,
           items: data.map(item => this.mapBannerToDto(item)),
         };
+      })
+      .catch(error => {
+        // ADDED: Proper error handling.
+        // This ensures that if the database query fails, the server sends an 
+        // error response instead of hanging.
+        console.error("Error fetching banner list:", error);
+        // Re-throwing the error ensures the client receives a server error response.
+        throw error;
       });
   }
 
-  getBannerImageUrl(imageNames) {
-    if (typeof imageNames !== 'undefined' && imageNames !== null) {
+getBannerImageUrl(imageNames) {
+    // --- DEBUG: Log the input to see what data we're starting with ---
+    console.log('[DEBUG] getBannerImageUrl received:', JSON.stringify(imageNames, null, 2));
+
+    if (typeof imageNames !== 'undefined' && imageNames !== null && Array.isArray(imageNames)) {
       var imagePath = [];
       imageNames.forEach(element => {
-        var bannerImage = picture.bannerImageFolder + element.banner_image_src;
-        if (fs.existsSync(bannerImage)) {
-          imagePath.push({ banner_image_src: frontEnd.picPath  + "/" + picture.showBannerPicFolderPath + element.banner_image_src, alt: element.alt, default: element.default });
-        } else {
-          imagePath.push(frontEnd.picPath  + "/" + picture.defaultPicFolderPath + 'bannerDefault.jpg');
+        // --- DEBUG: Log each item in the array ---
+        console.log('[DEBUG] Processing element:', JSON.stringify(element, null, 2));
+
+        if (!element || typeof element.banner_image_src === 'undefined') {
+          console.log('[DEBUG] Element is invalid or missing banner_image_src. Skipping.');
+          return; // Skips to the next item in the forEach loop
         }
 
-      })
+        // --- DEBUG: Log the server path being checked for existence ---
+        const localFilePath = picture.bannerImageFolder + element.banner_image_src;
+        console.log('[DEBUG] Checking for file at local path:', localFilePath);
+
+        const fileExists = fs.existsSync(localFilePath);
+        // --- DEBUG: Log whether the file was found or not ---
+        console.log(`[DEBUG] File exists? ${fileExists}`);
+
+        if (fileExists) {
+          const finalImageUrl = {
+            banner_image_src: frontEnd.picPath + "/" + picture.showBannerPicFolderPath + element.banner_image_src,
+            alt: element.alt,
+            default: element.default
+          };
+          // --- DEBUG: Log the final public URL being sent to the client ---
+          console.log('[DEBUG] SUCCESS: Pushing public image URL:', JSON.stringify(finalImageUrl, null, 2));
+          imagePath.push(finalImageUrl);
+        } else {
+          const defaultImageUrl = frontEnd.picPath + "/" + picture.defaultPicFolderPath + 'bannerDefault.jpg';
+    
+          console.log('[DEBUG] FAILED: Pushing default image URL:', defaultImageUrl);
+          imagePath.push(defaultImageUrl);
+        }
+      });
       return imagePath;
     } else {
-      return frontEnd.picPath  + "/" + picture.defaultPicFolderPath + 'bannerDefault.jpg';
+      const defaultImageUrl = frontEnd.picPath + "/" + picture.defaultPicFolderPath + 'bannerDefault.jpg';
+      // --- DEBUG: Log that the input was invalid and a single default is being returned ---
+      console.log('[DEBUG] Input `imageNames` was null, undefined, or not an array. Returning single default URL:', defaultImageUrl);
+      return defaultImageUrl;
     }
   }
 
-  mapBannerToDto(banner) {
-    var createdBy;
+// In bannerService.js
 
-    if (banner.createduserdata) {
-      createdBy = banner.createduserdata[0].firstName + ' ' + banner.createduserdata[0].lastName;
+  mapBannerToDto(banner) {
+    if (!banner) {
+      return {};
     }
-    var updatedBy;
-    if (banner.updateduserdata.length > 0) {
-      updatedBy = banner.updateduserdata[0].firstName + ' ' + banner.updateduserdata[0].lastName;
+
+    // --- SAFELY GET USER NAMES ---
+    // CHANGED: Added checks to prevent crashing if user data is missing or empty.
+    // Provides a fallback name 'N/A' if the author is not found.
+    let createdByName = 'N/A';
+    if (banner.createduserdata && banner.createduserdata.length > 0) {
+      createdByName = banner.createduserdata[0].firstName + ' ' + banner.createduserdata[0].lastName;
     }
-    var bannerVisible;
-    return banner ? {
+
+    let updatedByName = 'N/A';
+    if (banner.updateduserdata && banner.updateduserdata.length > 0) {
+      updatedByName = banner.updateduserdata[0].firstName + ' ' + banner.updateduserdata[0].lastName;
+    }
+
+    return {
       id: banner._id,
       banner_title: banner.banner_title,
       slug: banner.slug,
       banner_image: this.getBannerImageUrl(banner.banner_image),
-      banner_content: banner.banner_content,  // ADD THIS
-      banner_url: banner.banner_url,          // ADD THIS
+      banner_content: banner.banner_content,
+      banner_url: banner.banner_url,
       status: banner.status,
       disable: banner.disable,
       
-      // ADD THESE NEW FIELDS:
+      // Blog fields
       post_type: banner.post_type || 'regular',
       category: banner.category || 'general',
       author: banner.author || 'Admin',
@@ -164,12 +213,17 @@ class BannerService {
       is_published: banner.is_published !== undefined ? banner.is_published : banner.status,
       seo_title: banner.seo_title,
       seo_keywords: banner.seo_keywords,
+      
+      // System fields
       created_at: banner.created_at,
       updated_at: banner.updated_at,
-      createdby: banner.created_by,
-      updatedby: banner.updated_by,
-      bannerVisible: false,
-    } : {};
+      createdby: banner.created_by, // The user ID
+      updatedby: banner.updated_by, // The user ID
+
+      // ADDED: Include the safe full names in the response for the frontend to use.
+      createdByName: createdByName,
+      updatedByName: updatedByName,
+    };
   }
 
   mapDtoToBanner(dto) {
