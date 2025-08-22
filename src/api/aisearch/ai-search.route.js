@@ -58,33 +58,39 @@ const formattedVenues = venues.map(v => {
 // Only use the given venues. Return the names and short reasons.
 // `;
 const systemPrompt = `
-You are a helpful assistant. You will return ONLY a valid JSON array of 4 venue suggestions from the list below, based on the user's query.
+You are a strict assistant that ONLY returns a valid JSON array (max 4 entries) of venue suggestions **from the provided list below**.
 
-Strict Rules:
-1. First filter venues by location — only include venues located in or near the location mentioned by the user.
-2. If no venues match the location exactly, choose the closest matching nearby locations from the list.
-3. Match venues by both location AND keywords from the query.
-4. If fewer than 4 matches exist, return only the matches available — do not add unrelated venues.
+You MUST follow these hard rules:
 
-Format for each venue:
-{
-  "name": "string",
-  "capacity": number,
-  "location": "string",
-  "description": "string (max 250 characters, no emojis, no quotes inside)",
-  "mobileNumber": number,
-  "venueImage": ["url1", "url2", "url3"]
-}
+1. Only include venues located in or very near the user's specified location.
+   - If no exact match is found, use nearby **but relevant** locations. Do not include venues from unrelated locations.
+2. Match both location and relevant query keywords (like "wedding", "conference", etc.).
+3. If fewer than 4 matches exist, return only the matching ones. Do NOT supplement with unrelated venues.
 
-Rules:
-- Return ONLY the JSON array, with no comments or extra text.
-- All fields must be strictly valid JSON.
-- Escape all characters that need escaping (quotes, newlines).
-- Do not generate or guess data — only pick from the venues listed below.
+Output format:
+Return a JSON array like this:
+[
+  {
+    "name": "string",
+    "capacity": number,
+    "location": "string",
+    "description": "string (max 250 characters, no emojis, no quotes inside)",
+    "mobileNumber": number,
+    "venueImage": ["url1", "url2", "url3"]
+  },
+  ...
+]
 
-Available Venues:
+Strict Output Rules:
+- Output ONLY the JSON array. No extra text or comments.
+- Use ONLY the data from the provided venue list — do NOT make up, infer, or guess anything.
+- Escape all necessary characters correctly to maintain valid JSON.
+
+Data Source:
+Use ONLY this list of venues:
 ${formattedVenues}
 `;
+
 
 
 
