@@ -217,9 +217,8 @@ module.exports = (openaiKey) => {
       // 3. System prompt for hybrid behavior
       const systemPrompt = `
 You are an AI assistant for EazyVenue. 
-You can either:
-- Recommend venues from the provided list (if they match).
-- OR, if no venue is relevant, still answer the user's question conversationally.
+- Recommend venues from the provided list if they match the user query.
+- If no venue is relevant, answer the user's question conversationally.
 
 When recommending venues:
 Return them as a JSON array with objects:
@@ -234,7 +233,7 @@ Return them as a JSON array with objects:
 
 When answering generally:
 Return { "answer": "string" } in JSON format.
- 
+
 Available Venues:
 ${formattedVenues}
 `;
@@ -250,7 +249,6 @@ ${formattedVenues}
       });
 
       let suggestionText = response.data.choices[0].message.content;
-      console.log('🤖 Raw AI response:', suggestionText);
 
       // 5. Try JSON parse
       let parsedResponse;
@@ -259,21 +257,18 @@ ${formattedVenues}
           suggestionText.replace(/```json/g, '').replace(/```/g, '').trim()
         );
       } catch (err) {
-        console.warn('⚠️ JSON parse failed');
-        parsedResponse = { answer: suggestionText }; // fallback
+        parsedResponse = { answer: suggestionText }; // fallback as plain text
       }
 
-      // ✅ Case 1: Venues found
+      // ✅ Return response upfront
       if (Array.isArray(parsedResponse) && parsedResponse.length > 0) {
         return res.json({ success: true, venues: parsedResponse });
       }
 
-      // ✅ Case 2: General answer
       if (parsedResponse.answer) {
         return res.json({ success: true, answer: parsedResponse.answer });
       }
 
-      // ✅ Case 3: Nothing meaningful
       return res.json({
         success: false,
         message: "Sorry, I couldn't generate an answer."
