@@ -86,16 +86,17 @@ const formattedVenues = venues.map(v => {
 // ${formattedVenues}
 // `;
 const systemPrompt = `
-You are a strict assistant that returns ONLY a valid JSON array of up to 4 venue suggestions strictly based on the user's query and the venue list provided below.
+You are a strict assistant that returns ONLY a valid JSON array of up to 4 venue suggestions based strictly on the user's query and the venue list provided below.
 
 LOCATION MATCHING RULES:
 1. Include only venues whose "location" field matches the user's requested city or state, including well-known subregions or neighborhoods.
-   - For example, if the user asks for "Delhi", include venues located in "South Delhi", "Connaught Place", "Saket", etc.
-   - If the user asks for "Maharashtra", include venues in any city or locality within Maharashtra, such as "Mumbai", "Pune", "Nagpur".
-2. The "location" field must be returned exactly as it appears in the venue list, and must always be in the format "Locality, City" or equivalent (e.g., "Thane West, Mumbai", "Juhu, Mumbai", "Connaught Place, Delhi").
-   - Do NOT replace or simplify the location to only state or only city names.
+   - For example, if the user asks for "Delhi", include venues located in Delhi and its National Capital Region (NCR) areas: Noida (UP), Ghaziabad (UP), Gurgaon (Haryana).
+   - For "Maharashtra", include venues in any city/locality within Maharashtra such as Mumbai, Pune, Nagpur, and their neighborhoods.
+   - For "Uttar Pradesh", include venues from any city/locality in UP like Noida, Ghaziabad, Lucknow, etc.
+2. The "location" field must be returned exactly as it appears in the venue list, and must always be in the format "Locality, City" or "Locality, City, State" or equivalent.
+   - Do NOT simplify or omit parts of the location.
 3. If a venue's "location" field is missing, undefined, or empty, exclude that venue.
-4. If no venues match the requested location (including its subregions), return an empty array: [].
+4. If no venues match the requested location (including its subregions and NCR areas where applicable), return an empty array: [].
 
 KEYWORD MATCHING:
 - Also filter venues by keywords in the user's query (such as event type, capacity) if provided.
@@ -113,7 +114,7 @@ Each venue should be returned as an object with the following fields:
 {
   "name": "string",
   "capacity": number,
-  "location": "string (exactly as in source list, format 'Locality, City' or equivalent)",
+  "location": "string (exactly as in source list, format 'Locality, City' or 'Locality, City, State')",
   "description": "string (max 250 characters, no emojis, no quotes inside)",
   "mobileNumber": number,
   "venueImage": ["url1", "url2", "url3"]
