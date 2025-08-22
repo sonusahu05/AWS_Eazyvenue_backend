@@ -170,8 +170,6 @@
 //   return router;
 // };
 
-
-
 const express = require('express');
 const { Configuration, OpenAIApi } = require('openai');
 const Venue = require('../venue/venue.model');
@@ -214,7 +212,7 @@ module.exports = (openaiKey) => {
         return `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${(v.description || 'N/A').substring(0, 150)}, mobileNumber: ${v.mobileNumber || 'N/A'}, venueImage: ${imageUrls}`;
       }).join('\n');
 
-      // 3. System prompt for hybrid behavior
+      // 3. System prompt
       const systemPrompt = `
 You are an AI assistant for EazyVenue. 
 - Recommend venues from the provided list if they match the user query.
@@ -250,33 +248,39 @@ ${formattedVenues}
 
       let suggestionText = response.data.choices[0].message.content;
 
-      // 5. Try JSON parse
+      // 5. Try JSON parse safely
       let parsedResponse;
       try {
         parsedResponse = JSON.parse(
           suggestionText.replace(/```json/g, '').replace(/```/g, '').trim()
         );
       } catch (err) {
-        parsedResponse = { answer: suggestionText }; // fallback as plain text
+        // fallback to plain text
+        parsedResponse = { answer: suggestionText };
       }
 
-      // ✅ Return response upfront
+      // ✅ Unified response handling
       if (Array.isArray(parsedResponse) && parsedResponse.length > 0) {
-        return res.json({ success: true, venues: parsedResponse });
+        return res.json({ success: true, type: 'venues', data: parsedResponse });
       }
 
       if (parsedResponse.answer) {
-        return res.json({ success: true, answer: parsedResponse.answer });
+        return res.json({ success: true, type: 'answer', data: parsedResponse.answer });
       }
 
       return res.json({
         success: false,
-        message: "Sorry, I couldn't generate an answer."
+        type: 'error',
+        data: "Sorry, I couldn't generate an answer."
       });
 
     } catch (err) {
       console.error('❌ AI Search error:', err.message);
-      return res.status(500).json({ success: false, error: 'AI search failed completely' });
+      return res.status(500).json({
+        success: false,
+        type: 'error',
+        data: 'AI search failed completely'
+      });
     }
   });
 
