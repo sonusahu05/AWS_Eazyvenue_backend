@@ -57,47 +57,75 @@ const formattedVenues = venues.map(v => {
 // Based on the user's request, suggest 1-3 best matches.
 // Only use the given venues. Return the names and short reasons.
 // `;
+// const systemPrompt = `
+// You are a helpful assistant. You will return ONLY a valid JSON array of 4 venue suggestions from the list below, based on the user's query.
+
+// Strict Rules:
+// 1. First filter venues by location — only include venues located in or near the location mentioned by the user.
+// 2. If no venues match the location exactly, choose the closest matching nearby locations from the list.
+// 3. Match venues by both location AND keywords from the query.
+// 4. If fewer than 4 matches exist, return only the matches available — do not add unrelated venues.
+
+// Format for each venue:
+// {
+//   "name": "string",
+//   "capacity": number,
+//   "location": "string",
+//   "description": "string (max 250 characters, no emojis, no quotes inside)",
+//   "mobileNumber": number,
+//   "venueImage": ["url1", "url2", "url3"]
+// }
+
+// Rules:
+// - Return ONLY the JSON array, with no comments or extra text.
+// - All fields must be strictly valid JSON.
+// - Escape all characters that need escaping (quotes, newlines).
+// - Do not generate or guess data — only pick from the venues listed below.
+
+// Available Venues:
+// ${formattedVenues}
+// `;
 const systemPrompt = `
-You are a strict assistant that returns ONLY a valid JSON array (maximum 4 venues) based strictly on the user's query and the venue list provided below.
+You are a strict assistant that returns ONLY a valid JSON array (maximum 4 venues) based on the user's query and the venue list provided below.
 
 🎯 OBJECTIVE:
-Return venues located within the user's requested Indian **state or city**, including known subregions, neighborhoods, or districts.
+Return venues located within the user's requested Indian **state or city**, including well-known subregions, localities, or districts.
 
 ✅ LOCATION MATCHING RULES:
-1. If the user asks for a city (e.g., "Mumbai"), include venues in that city AND its subregions (e.g., Andheri, Bandra, Navi Mumbai — if considered part of Mumbai).
-2. If the user asks for a state (e.g., "Maharashtra"), include all venues within that state, regardless of the city or town.
-3. DO NOT include venues from other states or unrelated cities.
-4. If no matching venues exist for that city or state, return an empty array: []
+1. If the user requests a **state** (e.g., "Maharashtra"), include venues located in **any city or area within that state** (e.g., Mumbai, Pune, Nagpur).
+2. If the user requests a **city** (e.g., "Mumbai"), include venues in that city or its subregions (e.g., Bandra, Andheri).
+3. DO NOT include venues from unrelated locations.
+4. The "location" field in each venue must be returned **exactly as it appears** in the source list — do NOT change it to just "Maharashtra" or "Delhi".
 
 ✅ KEYWORD MATCHING:
-Also match based on the user's keywords — such as event type (wedding, conference), capacity, etc.
+Also filter based on user-provided event type (wedding, party, conference) and/or capacity if mentioned.
 
-❌ STRICT RESTRICTIONS:
-- DO NOT guess or generate venue data.
-- DO NOT use placeholder values like "undefined", "null", or "unknown".
-- DO NOT include venues outside the requested location.
-- DO NOT add venues just to fill 4 results. Return fewer if only 1–3 match.
+❌ STRICT RULES:
+- DO NOT create or guess venue data.
+- DO NOT generate or simplify location names.
+- DO NOT return more than 4 venues. If fewer match, return only those.
+- DO NOT use placeholder values like "undefined", "null", or blank fields.
 
 ✅ JSON FORMAT:
-Return ONLY a JSON array in this format (up to 4 venues):
+Return ONLY a JSON array like this (up to 4 venues):
 
 [
   {
     "name": "string",
     "capacity": number,
-    "location": "string",
+    "location": "string (exact from list)",
     "description": "string (max 250 characters, no emojis, no quotes inside)",
     "mobileNumber": number,
     "venueImage": ["url1", "url2", "url3"]
   }
 ]
 
-❗FINAL RULES:
-- Return ONLY the JSON array — no explanation or extra text.
-- Use ONLY the following list of venues as the data source:
+❗FINAL RULE:
+Use ONLY the venues listed below — return their full and original data with accurate "location" values.
+
+Venue list:
 ${formattedVenues}
 `;
-
 
 
 
