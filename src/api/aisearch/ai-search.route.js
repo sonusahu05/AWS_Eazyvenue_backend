@@ -180,9 +180,6 @@ const config = require('config');
 module.exports = (openaiKey) => {
   const router = express.Router();
 
-  console.log('🟢 ai-search.route.js loaded');
-  console.log('🧪 OpenAI Key:', openaiKey ? 'Loaded ✅' : 'Missing ❌');
-
   let openai;
   try {
     const configuration = new Configuration({ apiKey: openaiKey });
@@ -193,11 +190,9 @@ module.exports = (openaiKey) => {
   }
 
   // -------------------------------
-  // 🔹 MAIN AI SEARCH ENDPOINT
+  // 🔹 AI SEARCH ENDPOINT
   // -------------------------------
   router.post('/', async (req, res) => {
-    console.log('📩 /aisearch hit');
-
     const { prompt } = req.body;
     if (!prompt || prompt.trim() === '') {
       return res.status(400).json({ success: false, error: 'Prompt is required' });
@@ -210,10 +205,6 @@ module.exports = (openaiKey) => {
         'name capacity location description venueImage mobileNumber'
       ).limit(50);
 
-      if (!venues || venues.length === 0) {
-        return res.status(404).json({ success: false, error: 'No venues in database' });
-      }
-
       // 2. Format venues for GPT
       const formattedVenues = venues.map(v => {
         const imageUrls = v.venueImage?.map(img =>
@@ -223,15 +214,15 @@ module.exports = (openaiKey) => {
         return `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${(v.description || 'N/A').substring(0, 150)}, mobileNumber: ${v.mobileNumber || 'N/A'}, venueImage: ${imageUrls}`;
       }).join('\n');
 
-      // 3. System prompt
+      // 3. System prompt for hybrid behavior
       const systemPrompt = `
-You are a helpful AI assistant for venue search.
-You will ONLY use the venues listed below to answer.
-If no venue matches the user's request (e.g. different city), return an empty array [].
+You are an AI assistant for EazyVenue. 
+You can either:
+- Recommend venues from the provided list (if they match).
+- OR, if no venue is relevant, still answer the user's question conversationally.
 
-Return format: strictly JSON array, no extra text.
-
-Each venue object must include:
+When recommending venues:
+Return them as a JSON array with objects:
 {
   "name": "string",
   "capacity": number,
@@ -241,6 +232,9 @@ Each venue object must include:
   "venueImage": ["url1", "url2"]
 }
 
+When answering generally:
+Return { "answer": "string" } in JSON format.
+ 
 Available Venues:
 ${formattedVenues}
 `;
@@ -248,7 +242,7 @@ ${formattedVenues}
       // 4. Ask GPT
       const response = await openai.createChatCompletion({
         model: 'gpt-3.5-turbo',
-        temperature: 0.3,
+        temperature: 0.5,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -258,50 +252,37 @@ ${formattedVenues}
       let suggestionText = response.data.choices[0].message.content;
       console.log('🤖 Raw AI response:', suggestionText);
 
-      // 5. Parse JSON safely
-      let parsedVenues;
+      // 5. Try JSON parse
+      let parsedResponse;
       try {
-        parsedVenues = JSON.parse(
+        parsedResponse = JSON.parse(
           suggestionText.replace(/```json/g, '').replace(/```/g, '').trim()
         );
       } catch (err) {
         console.warn('⚠️ JSON parse failed');
-        parsedVenues = [];
-      }
-
-      if (!Array.isArray(parsedVenues)) {
-        parsedVenues = [];
+        parsedResponse = { answer: suggestionText }; // fallback
       }
 
       // ✅ Case 1: Venues found
-      if (parsedVenues.length > 0) {
-        return res.json({ success: true, venues: parsedVenues });
+      if (Array.isArray(parsedResponse) && parsedResponse.length > 0) {
+        return res.json({ success: true, venues: parsedResponse });
       }
 
-      // ✅ Case 2: No venues found → show custom message
+      // ✅ Case 2: General answer
+      if (parsedResponse.answer) {
+        return res.json({ success: true, answer: parsedResponse.answer });
+      }
+
+      // ✅ Case 3: Nothing meaningful
       return res.json({
         success: false,
-        venues: [],
-        message: "Sorry, we couldn't find any venues matching your request. Please try a different location or criteria."
+        message: "Sorry, I couldn't generate an answer."
       });
 
     } catch (err) {
       console.error('❌ AI Search error:', err.message);
-      console.error('🔍 Full Error:', err.response?.data || err.stack || err);
       return res.status(500).json({ success: false, error: 'AI search failed completely' });
     }
-  });
-
-  // -------------------------------
-  // 🔹 GET VENUE BY NAME
-  // -------------------------------
-  router.get('/name/:name', async (req, res) => {
-    const name = decodeURIComponent(req.params.name);
-    const venue = await Venue.findOne({ name });
-    if (!venue) {
-      return res.status(404).json({ error: 'Venue not found' });
-    }
-    res.json({ data: venue });
   });
 
   return router;
