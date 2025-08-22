@@ -170,149 +170,70 @@
 //   return router;
 // };
 
-const express = require('express');
-const { Configuration, OpenAIApi } = require('openai');
-const Venue = require('../venue/venue.model');
-const config = require('config');
-const crypto = require('crypto');
-const redisClient = require('../../utils/redisClient'); // ✅ Update this path if needed
+const express = require("express");
+const router = express.Router();
+const Venue = require("../models/Venue");
+const { ChatOpenAI } = require("@langchain/openai");
+const { PromptTemplate } = require("@langchain/core/prompts");
+const { RunnableSequence } = require("@langchain/core/runnables");
+const { z } = require("zod");
+const { JsonOutputParser } = require("langchain/output_parsers");
 
-module.exports = (openaiKey) => {
-  const router = express.Router();
+const parser = new JsonOutputParser();
 
-  console.log('🟢 ai-search.route.js loaded');
-  console.log('🧪 OpenAI Key:', openaiKey ? 'Loaded ✅' : 'Missing ❌');
+const prompt = PromptTemplate.fromTemplate(`
+You are a helpful assistant that recommends event venues to users based on their query.
 
-  let openai;
-  try {
-    const configuration = new Configuration({ apiKey: openaiKey });
-    openai = new OpenAIApi(configuration);
-    console.log('🤖 OpenAI client initialized');
-  } catch (err) {
-    console.error('❌ Failed to init OpenAI:', err.message);
+Extract the user's intent and match it with appropriate venues.
+
+Return only a JSON array of objects like this:
+
+[
+  {{
+    "name": "Venue Name",
+    "capacity": 200,
+    "location": "Location Name",
+    "description": "Short venue description",
+    "mobileNumber": "9999999999",
+    "venueImage": ["image1.jpg", "image2.jpg"]
+  }}
+]
+
+USER QUERY:
+{input}
+`);
+
+const model = new ChatOpenAI({
+  temperature: 0.3,
+  modelName: "gpt-4o",
+});
+
+const chain = RunnableSequence.from([prompt, model, parser]);
+
+router.post("/", async (req, res) => {
+  const { query } = req.body;
+
+  if (!query) {
+    return res.status(400).json({ success: false, error: "Query is required" });
   }
 
-  router.post('/', async (req, res) => {
-    console.log('📩 /aisearch hit');
+  try {
+    const result = await chain.invoke({ input: query });
 
-    const { prompt } = req.body;
-    if (!prompt || prompt.trim() === '') {
-      return res.status(400).json({ success: false, error: 'Prompt is required' });
-    }
+    // Defensive parsing in case it's a string
+    const venues = typeof result === "string" ? JSON.parse(result) : result;
 
-    // Create prompt hash for Redis caching
-    const promptHash = crypto.createHash('sha256').update(prompt).digest('hex');
-    const cacheKey = `ai:search:${promptHash}`;
+    return res.json({ success: true, venues });
+  } catch (err) {
+    console.error("AI Search Error:", err.message);
 
-    try {
-      // Try Redis cache
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        console.log('🟡 Returning cached AI result');
-        return res.json({ success: true, venues: JSON.parse(cached) });
-      }
+    // Return fallback empty response (or you can return default venues)
+    return res.status(500).json({
+      success: false,
+      error: "Invalid AI response format",
+      fallbackText: err.message,
+    });
+  }
+});
 
-      const venues = await Venue.find({}, 'name capacity location description capacity venueImage mobileNumber').limit(30);
-
-      const formattedVenues = venues.map(v => {
-        const imageUrls = v.venueImage?.map(img =>
-          `${config.get('frontEnd.picPath')}/uploads/${img.venue_image_src}`
-        ).slice(0, 3); // Limit to 3 images for token optimization
-
-        return {
-          name: v.name,
-          capacity: v.capacity,
-          location: v.location,
-          description: (v.description || 'N/A').substring(0, 250).replace(/["]/g, ''), // Remove quotes
-          mobileNumber: v.mobileNumber || '',
-          venueImage: imageUrls || [],
-        };
-      });
-
-      const formattedVenueString = formattedVenues.map(v =>
-        `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${v.description}, mobileNumber: ${v.mobileNumber}, venueImage: ${v.venueImage.join(', ')}`
-      ).join('\n');
-
-      const systemPrompt = `
-You are a helpful assistant. You will return ONLY a valid JSON array of up to 4 venue suggestions based on the user’s request and the list provided.
-
-Strict rules:
-1. Filter venues by matching or nearby location if mentioned.
-2. Match based on keywords and intent (e.g., birthday, wedding, corporate).
-3. Use only the given venues. No hallucination.
-
-Format for each venue:
-{
-  "name": "string",
-  "capacity": number,
-  "location": "string",
-  "description": "string (max 250 chars, no emojis, no quotes inside)",
-  "mobileNumber": "string",
-  "venueImage": ["url1", "url2"]
-}
-
-Rules:
-- Output a JSON array ONLY. No extra text, no explanations.
-- All fields must be valid JSON format.
-- Do not guess or fabricate — use only the listed venues.
-
-Available Venues:
-${formattedVenueString}
-`;
-
-      const response = await openai.createChatCompletion({
-        model: 'gpt-4o', // ✅ Upgraded from gpt-3.5-turbo
-        temperature: 0.3,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ]
-      });
-
-      const suggestionText = response.data.choices[0].message.content;
-      console.log('🤖 Raw AI response:', suggestionText);
-
-      try {
-        const parsedVenues = JSON.parse(suggestionText);
-
-        if (!Array.isArray(parsedVenues)) throw new Error('Expected an array');
-
-        const isValid = parsedVenues.every(v =>
-          v.name && v.capacity && v.location && v.description && v.mobileNumber && Array.isArray(v.venueImage)
-        );
-
-        if (!isValid) throw new Error('Invalid venue data');
-
-        // ✅ Cache successful response
-        await redisClient.setEx(cacheKey, 600, JSON.stringify(parsedVenues)); // 10 min cache
-
-        return res.json({ success: true, venues: parsedVenues });
-
-      } catch (parseErr) {
-        console.error('❌ Failed to parse AI JSON:', parseErr.message);
-        return res.status(500).json({
-          success: false,
-          error: 'Invalid AI response format',
-          fallbackText: suggestionText // 🔁 Optional fallback
-        });
-      }
-
-    } catch (err) {
-      console.error('❌ AI Search error:', err.message);
-      console.error('🔍 Full Error:', err.response?.data || err.stack || err);
-      return res.status(500).json({ success: false, error: 'AI search failed' });
-    }
-  });
-
-  // GET venue by name (case-insensitive match)
-  router.get('/name/:name', async (req, res) => {
-    const name = decodeURIComponent(req.params.name);
-    const venue = await Venue.findOne({ name });
-    if (!venue) {
-      return res.status(404).json({ error: 'Venue not found' });
-    }
-    res.json({ data: venue });
-  });
-
-  return router;
-};
+module.exports = router;
