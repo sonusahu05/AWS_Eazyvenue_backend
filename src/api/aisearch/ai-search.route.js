@@ -223,20 +223,20 @@ module.exports = (openaiKey) => {
         return `Name: ${v.name}, Capacity: ${v.capacity}, Location: ${v.location}, About: ${(v.description || 'N/A').substring(0, 150)}, mobileNumber: ${v.mobileNumber || 'N/A'}, venueImage: ${imageUrls}`;
       }).join('\n');
 
-      // 3. System prompt for structured JSON response
+      // 3. System prompt
       const systemPrompt = `
-You are a helpful AI assistant. You will return ONLY a valid JSON array of up to 4 venue suggestions from the list below, based on the user's query.
+You are a helpful AI assistant for venue search.
+You will ONLY use the venues listed below to answer.
+If no venue matches the user's request (e.g. different city), return an empty array [].
 
-Strict Rules:
-- Only pick venues from the list below. Never invent new ones.
-- Match by location and relevant keywords in the query.
-- If fewer than 4 matches exist, return only those. If none match, return [].
-- Each object must follow:
+Return format: strictly JSON array, no extra text.
+
+Each venue object must include:
 {
   "name": "string",
   "capacity": number,
   "location": "string",
-  "description": "string (max 250 chars, no emojis, no quotes inside)",
+  "description": "string (max 250 chars)",
   "mobileNumber": "string",
   "venueImage": ["url1", "url2"]
 }
@@ -258,47 +258,45 @@ ${formattedVenues}
       let suggestionText = response.data.choices[0].message.content;
       console.log('🤖 Raw AI response:', suggestionText);
 
-      // 5. Try to parse JSON safely
+      // 5. Parse JSON safely
       let parsedVenues;
       try {
-        parsedVenues = JSON.parse(suggestionText);
+        parsedVenues = JSON.parse(
+          suggestionText.replace(/```json/g, '').replace(/```/g, '').trim()
+        );
       } catch (err) {
-        console.warn('⚠️ JSON parse failed, cleaning text…');
-        const cleaned = suggestionText
-          .replace(/```json/g, '')
-          .replace(/```/g, '')
-          .trim();
-        parsedVenues = JSON.parse(cleaned);
+        console.warn('⚠️ JSON parse failed');
+        parsedVenues = [];
       }
 
       if (!Array.isArray(parsedVenues)) {
-        throw new Error('AI response was not a JSON array');
+        parsedVenues = [];
       }
 
-      return res.json({ success: true, venues: parsedVenues });
+      // ✅ Case 1: Venues found → return normally
+      if (parsedVenues.length > 0) {
+        return res.json({ success: true, venues: parsedVenues });
+      }
+
+      // ✅ Case 2: No venues found → fallback to general ChatGPT advice
+      const fallback = await openai.createChatCompletion({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant.' },
+          { role: 'user', content: prompt }
+        ],
+      });
+
+      return res.json({
+        success: true,
+        venues: [],
+        generalAnswer: fallback.data.choices[0].message.content,
+      });
 
     } catch (err) {
       console.error('❌ AI Search error:', err.message);
       console.error('🔍 Full Error:', err.response?.data || err.stack || err);
-
-      // 🔹 Fallback: give general ChatGPT-style answer
-      try {
-        const fallback = await openai.createChatCompletion({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: prompt },
-          ],
-        });
-
-        return res.json({
-          success: true,
-          venues: [],
-          generalAnswer: fallback.data.choices[0].message.content,
-        });
-      } catch (fallbackErr) {
-        return res.status(500).json({ success: false, error: 'AI search failed completely' });
-      }
+      return res.status(500).json({ success: false, error: 'AI search failed completely' });
     }
   });
 
