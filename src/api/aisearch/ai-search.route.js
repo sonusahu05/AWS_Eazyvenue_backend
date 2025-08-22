@@ -273,24 +273,16 @@ ${formattedVenues}
         parsedVenues = [];
       }
 
-      // ✅ Case 1: Venues found → return normally
+      // ✅ Case 1: Venues found
       if (parsedVenues.length > 0) {
         return res.json({ success: true, venues: parsedVenues });
       }
 
-      // ✅ Case 2: No venues found → fallback to general ChatGPT advice
-      const fallback = await openai.createChatCompletion({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: prompt }
-        ],
-      });
-
+      // ✅ Case 2: No venues found → show custom message
       return res.json({
-        success: true,
+        success: false,
         venues: [],
-        generalAnswer: fallback.data.choices[0].message.content,
+        message: "Sorry, we couldn't find any venues matching your request. Please try a different location or criteria."
       });
 
     } catch (err) {
