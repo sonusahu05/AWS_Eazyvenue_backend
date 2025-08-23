@@ -922,6 +922,70 @@ class BookingController {
         }
     }
 
+
+    /**
+ * Get global hot dates across all venues
+ */
+async getGlobalHotDates(req, res) {
+  try {
+    // Fetch all bookings (confirmed + pending only, not cancelled)
+    const bookings = await Booking.find({ "details.bookingStatus": { $in: ["confirmed", "pending"] } }).lean();
+
+    // Aggregate counts per date
+    const hotDateMap = {};
+
+    bookings.forEach(b => {
+      const start = b.details.startFilterDate;
+      const end = b.details.endFilterDate;
+      const occasion = b.details.occasion || "Event";
+
+      // Handle single-day or range
+      const startDate = new Date(start.split("/").reverse().join("-"));
+      const endDate = new Date(end.split("/").reverse().join("-"));
+
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().split("T")[0];
+        if (!hotDateMap[key]) {
+          hotDateMap[key] = {
+            date: key,
+            count: 0,
+            totalViews: 0,
+            enquiries: 0,
+            occasions: {}
+          };
+        }
+        hotDateMap[key].count++;
+        hotDateMap[key].occasions[occasion] = (hotDateMap[key].occasions[occasion] || 0) + 1;
+      }
+    });
+
+    // Convert to array and add heat level + top occasion
+    const hotDates = Object.values(hotDateMap).map(hd => {
+      const topOccasion = Object.entries(hd.occasions).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+      return {
+        date: hd.date,
+        heatLevel: Math.min(100, hd.count * 10), // simple % formula
+        totalViews: hd.count * 5, // fake metric (replace with real views if you have)
+        enquiries: hd.count * 2, // fake metric (replace with real enquiries if you have)
+        highestDemandOccasion: topOccasion[0],
+        occasionDemandCount: topOccasion[1]
+      };
+    });
+
+    res.status(200).json({ success: true, data: hotDates });
+
+  } catch (error) {
+    console.error("❌ Error generating global hot dates:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate hot dates",
+      error: error.message
+    });
+  }
+}
+
+
+
     /**
      * Get bookings for a specific user (Frontend booking history)
      */

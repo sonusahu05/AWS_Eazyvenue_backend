@@ -13,6 +13,10 @@ router.post('/create-from-frontend', bookingController.createBookingFromFrontend
 // Update booking tracking fields (for frontend analytics)
 router.put('/update-tracking/:bookingId', bookingController.updateBookingTracking);
 
+// Get global hot dates (all venues)
+router.get('/hot-dates/global', bookingController.getGlobalHotDates);
+
+
 // Get venue bookings for calendar view
 router.get('/venue/:venueId', auth, bookingController.getVenueBookings);
 
