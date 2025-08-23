@@ -928,10 +928,9 @@ class BookingController {
  */
 async getGlobalHotDates(req, res) {
   try {
-    // Fetch all bookings (confirmed + pending only, not cancelled)
+    // Fetch all bookings with confirmed or pending status
     const bookings = await Booking.find({ "details.bookingStatus": { $in: ["confirmed", "pending"] } }).lean();
 
-    // Aggregate counts per date
     const hotDateMap = {};
 
     bookings.forEach(b => {
@@ -939,12 +938,18 @@ async getGlobalHotDates(req, res) {
       const end = b.details.endFilterDate;
       const occasion = b.details.occasion || "Event";
 
-      // Handle single-day or range
-      const startDate = new Date(start.split("/").reverse().join("-"));
-      const endDate = new Date(end.split("/").reverse().join("-"));
+      // Parse date strings "DD/MM/YYYY" to Date objects
+      const parseDate = (str) => {
+        const [d, m, y] = str.split("/");
+        return new Date(`${y}-${m}-${d}`);
+      };
+
+      const startDate = parseDate(start);
+      const endDate = parseDate(end);
 
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const key = d.toISOString().split("T")[0];
+
         if (!hotDateMap[key]) {
           hotDateMap[key] = {
             date: key,
@@ -954,21 +959,33 @@ async getGlobalHotDates(req, res) {
             occasions: {}
           };
         }
+
         hotDateMap[key].count++;
+
+        // Sum the real enquiry and book now clicks if they exist, else 0
+        hotDateMap[key].enquiries += b.details.sendEnquiryClicked || 0;
+        hotDateMap[key].totalViews += b.details.clickedOnBookNow || 0;
+
         hotDateMap[key].occasions[occasion] = (hotDateMap[key].occasions[occasion] || 0) + 1;
       }
     });
 
-    // Convert to array and add heat level + top occasion
+    // Convert to array and calculate heatLevel based on real counts
     const hotDates = Object.values(hotDateMap).map(hd => {
-      const topOccasion = Object.entries(hd.occasions).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+      const topOccasionEntry = Object.entries(hd.occasions).sort((a, b) => b[1] - a[1])[0] || ["N/A", 0];
+
+      // For heatLevel, let's combine count and engagement (views + enquiries) into a percentage capped at 100%
+      const engagementScore = hd.totalViews + hd.enquiries;
+      const rawScore = hd.count * 10 + engagementScore * 5; // weights can be adjusted
+      const heatLevel = Math.min(100, rawScore);
+
       return {
         date: hd.date,
-        heatLevel: Math.min(100, hd.count * 10), // simple % formula
-        totalViews: hd.count * 5, // fake metric (replace with real views if you have)
-        enquiries: hd.count * 2, // fake metric (replace with real enquiries if you have)
-        highestDemandOccasion: topOccasion[0],
-        occasionDemandCount: topOccasion[1]
+        heatLevel,
+        totalViews: hd.totalViews,
+        enquiries: hd.enquiries,
+        highestDemandOccasion: topOccasionEntry[0],
+        occasionDemandCount: topOccasionEntry[1]
       };
     });
 
@@ -983,6 +1000,7 @@ async getGlobalHotDates(req, res) {
     });
   }
 }
+
 
 
 
@@ -1120,34 +1138,5 @@ async getGlobalHotDates(req, res) {
         }
     }
 }
-// ✅ Global Hot Dates Controller
-exports.getGlobalHotDates = async (req, res) => {
-  try {
-    // Example static hot dates (replace with real logic later)
-    const hotDates = [
-      {
-        date: "2025-09-15",
-        heatLevel: 85,
-        totalViews: 120,
-        enquiries: 40,
-        highestDemandOccasion: "Wedding",
-        occasionDemandCount: 28
-      },
-      {
-        date: "2025-09-18",
-        heatLevel: 70,
-        totalViews: 95,
-        enquiries: 32,
-        highestDemandOccasion: "Corporate",
-        occasionDemandCount: 20
-      }
-    ];
-
-    res.status(200).json(hotDates);
-  } catch (err) {
-    console.error("❌ Error generating hot dates:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
 
 module.exports = new BookingController();
