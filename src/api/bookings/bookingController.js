@@ -1120,5 +1120,34 @@ async getGlobalHotDates(req, res) {
         }
     }
 }
+// ✅ Global Hot Dates Controller
+exports.getGlobalHotDates = async (req, res) => {
+  try {
+    // Example static hot dates (replace with real logic later)
+    const hotDates = [
+      {
+        date: "2025-09-15",
+        heatLevel: 85,
+        totalViews: 120,
+        enquiries: 40,
+        highestDemandOccasion: "Wedding",
+        occasionDemandCount: 28
+      },
+      {
+        date: "2025-09-18",
+        heatLevel: 70,
+        totalViews: 95,
+        enquiries: 32,
+        highestDemandOccasion: "Corporate",
+        occasionDemandCount: 20
+      }
+    ];
+
+    res.status(200).json(hotDates);
+  } catch (err) {
+    console.error("❌ Error generating hot dates:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 module.exports = new BookingController();

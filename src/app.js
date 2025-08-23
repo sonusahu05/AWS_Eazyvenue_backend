@@ -125,6 +125,7 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use('/api/venue', venueRoutes);
 app.use('/api/aiSearch', aiSearchRoute);
+app.use('/api/bookings', bookingRoutes);
 // Middleware for error handling
 function logErrors(err, req, res, next) {
   logger.errorLog.error(err);
