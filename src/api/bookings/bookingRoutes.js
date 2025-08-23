@@ -18,7 +18,6 @@ router.get('/venue/:venueId', auth, bookingController.getVenueBookings);
 
 // Get user bookings (Frontend booking history)
 router.get('/user/:userId', bookingController.getUserBookings);
-router.get('/hot-dates/global', bookingController.getGlobalHotDates);
 
 // Block dates for maintenance/other purposes
 router.post('/block-dates', auth, bookingController.blockDates);
